@@ -11,7 +11,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "migrate": "node --experimental-strip-types src/migrate.ts",
-    "seed": "node --experimental-strip-types src/seed.ts"
+    "seed": "node --experimental-strip-types src/seed.ts",
+    "sync": "node --experimental-strip-types src/sync-chain.ts"
   },
   "dependencies": {
     "mongodb": "^6.12.0"

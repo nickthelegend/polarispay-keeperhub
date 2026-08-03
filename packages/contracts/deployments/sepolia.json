@@ -1,0 +1,12 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "deployer": "0x7A2E11B3ECEBaB8Ea46966eDaDD4092583809b67",
+  "deployedAt": "2026-08-03T23:25:49.635Z",
+  "contracts": {
+    "MockUSDC": "0x49C86277a91002c4943837bf20F6ED41976Db09F",
+    "ScoreManager": "0x4e9e7EEF855BFE2c44608A9613E955fC67035312",
+    "MerchantRegistry": "0xb2eCAD5bE07971deE1be161C39569705186AdFD6",
+    "PolarisLoanEngine": "0xF8DA73d32778f623D33C5D75c7359CbA1DA584ED"
+  }
+}

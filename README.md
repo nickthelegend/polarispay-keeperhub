@@ -6,6 +6,10 @@ Polaris issues credit. KeeperHub makes sure the money actually moves: installmen
 
 Submission for the **KeeperHub Agents Onchain** hackathon.
 
+**Live on Ethereum Sepolia.** Contracts deployed, full BNPL lifecycle exercised on chain with assertions at every step — merchant paid up front, two instalments collected by a third party, credit score moved 600 → 624. Transaction list and addresses in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+> Honest status: every transaction so far was signed directly with ethers. Routing execution through KeeperHub needs an organization API key that is not yet configured, so the keeper currently runs in dry-run mode. See [what is not yet exercised](docs/DEPLOYMENT.md#not-yet-exercised-on-chain).
+
 ---
 
 ## The problem
