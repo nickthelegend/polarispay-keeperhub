@@ -11,7 +11,7 @@
         "config": {
           "triggerType": "Block",
           "blockInterval": 50,
-          "network": "84532"
+          "network": "11155111"
         }
       }
     },
@@ -36,7 +36,7 @@
         "type": "action",
         "config": {
           "actionType": "web3/read-contract",
-          "network": "84532",
+          "network": "11155111",
           "contractAddress": "{{env.POLARIS_LOAN_ENGINE}}",
           "abiFunction": "checkLiquidatable",
           "functionArgs": "[\"{{@fetch-candidates:Fetch Liquidation Candidates.loanId}}\"]"
@@ -64,7 +64,7 @@
         "type": "action",
         "config": {
           "actionType": "web3/write-contract",
-          "network": "84532",
+          "network": "11155111",
           "contractAddress": "{{env.POLARIS_LOAN_ENGINE}}",
           "abiFunction": "liquidate",
           "functionArgs": "[\"{{@fetch-candidates:Fetch Liquidation Candidates.loanId}}\"]"

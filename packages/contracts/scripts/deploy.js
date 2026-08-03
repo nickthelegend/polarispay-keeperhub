@@ -1,9 +1,9 @@
 /**
- * Deploy the PolarisPay stack to Base Sepolia.
+ * Deploy the PolarisPay stack to Sepolia.
  *
- *   pnpm --filter @polarispay/contracts deploy:base-sepolia
+ *   pnpm --filter @polarispay/contracts deploy:sepolia
  *
- * Writes deployments/base-sepolia.json and prints the .env lines to paste back.
+ * Writes deployments/sepolia.json and prints the .env lines to paste back.
  */
 
 const { writeFileSync, mkdirSync } = require("node:fs");
@@ -21,8 +21,8 @@ async function main() {
 
   if (balance === 0n) {
     throw new Error(
-      `Deployer ${deployer.address} has no ETH. Fund it from a Base Sepolia faucet ` +
-        `(https://www.alchemy.com/faucets/base-sepolia) and re-run.`
+      `Deployer ${deployer.address} has no ETH. Fund it from a Sepolia faucet ` +
+        `(https://www.alchemy.com/faucets/sepolia) and re-run.`
     );
   }
 

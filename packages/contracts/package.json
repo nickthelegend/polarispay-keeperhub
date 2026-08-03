@@ -2,13 +2,13 @@
   "name": "@polarispay/contracts",
   "version": "0.1.0",
   "private": true,
-  "description": "PolarisPay EVM contracts for Base Sepolia: BNPL loan engine, credit scores, merchant registry.",
+  "description": "PolarisPay EVM contracts for Sepolia: BNPL loan engine, credit scores, merchant registry.",
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy:base-sepolia": "hardhat run scripts/deploy.js --network baseSepolia",
-    "seed:base-sepolia": "hardhat run scripts/seed.js --network baseSepolia",
-    "verify:base-sepolia": "hardhat run scripts/verify.js --network baseSepolia"
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "seed:sepolia": "hardhat run scripts/seed.js --network sepolia",
+    "verify:sepolia": "hardhat run scripts/verify.js --network sepolia"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.2",

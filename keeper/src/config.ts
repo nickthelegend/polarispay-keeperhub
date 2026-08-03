@@ -23,7 +23,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): KeeperConfig {
     );
   }
 
-  const chainId = Number(env.POLARIS_CHAIN_ID ?? CHAIN.baseSepolia);
+  const chainId = Number(env.POLARIS_CHAIN_ID ?? CHAIN.sepolia);
   const loanEngine = env.POLARIS_LOAN_ENGINE ?? "";
   if (!loanEngine) {
     throw new Error(

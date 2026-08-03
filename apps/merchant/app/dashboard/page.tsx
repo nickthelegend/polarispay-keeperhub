@@ -228,7 +228,7 @@ function PlanRow({ plan }: { plan: Plan }) {
                     <StateBadge plan={plan} />
                     {plan.lastTxHash && (
                         <a
-                            href={`https://sepolia.basescan.org/tx/${plan.lastTxHash}`}
+                            href={`https://sepolia.etherscan.io/tx/${plan.lastTxHash}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"

@@ -119,7 +119,7 @@ Status counts: **38 shipped · 21 wired · 41 planned**
 | 82 | Per-filter empty states with distinct copy | Shipped |
 | 83 | Error state naming the problem and the recovery | Shipped |
 | 84 | Skeleton rows matching the real table geometry | Shipped |
-| 85 | Deep link to the settlement transaction on Basescan | Shipped |
+| 85 | Deep link to the settlement transaction on Etherscan | Shipped |
 | 86 | Tabular numerals throughout so figures align down the column | Shipped |
 | 87 | Auto-refresh every 20s | Shipped |
 | 88 | Merchant onboarding and API key issuance | Wired |
@@ -134,7 +134,7 @@ Status counts: **38 shipped · 21 wired · 41 planned**
 |---|---|---|
 | 93 | `<PayWithPolaris />` drop-in React component | Wired |
 | 94 | Shopify payments app and checkout UI extension | Wired |
-| 95 | Base Sepolia deployment scripts with address output | Shipped |
+| 95 | Sepolia deployment scripts with address output | Shipped |
 | 96 | Faucet-enabled test stablecoin so a demo borrower can self-fund | Shipped |
 | 97 | Merchant registry with per-merchant origination caps | Shipped |
 | 98 | Hosted checkout page | Planned |

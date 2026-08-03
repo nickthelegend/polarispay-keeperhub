@@ -15,6 +15,7 @@
     "workflows:push": "node --experimental-strip-types src/cli.ts workflows:push"
   },
   "dependencies": {
+    "@polarispay/db": "workspace:*",
     "@polarispay/keeperhub": "workspace:*"
   },
   "devDependencies": {

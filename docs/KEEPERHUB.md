@@ -44,7 +44,7 @@ KeeperHub logs trigger, simulation result, transaction hash, gas used, outcome a
 ## Real but secondary
 
 - **Retries + adaptive gas + RPC failover** — matters on the first of the month when hundreds of installments fire at once. Free, and we do not reimplement it.
-- **Gas sponsorship** — Base, Ethereum, Polygon, Arbitrum and their testnets. The keeper wallet never needs a native balance.
+- **Gas sponsorship** — Ethereum, Base, Polygon, Arbitrum and their testnets, including Sepolia (11155111) where PolarisPay runs. The keeper wallet never needs a native balance.
 - **Spending caps** — organization-level hard ceiling, so a bug cannot drain the treasury.
 - **Notification plugins** — Telegram and Discord for dunning notices and liquidation alerts.
 - **Block triggers** — health-factor sweeps for liquidation candidates.

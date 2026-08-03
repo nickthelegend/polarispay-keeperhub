@@ -17,9 +17,11 @@ import {
   PolarisKeeper,
   isKeeperHubError,
 } from "@polarispay/keeperhub";
+import { closeDb, MongoLoanBook, MongoReceiptStore, ping } from "@polarispay/db";
 
 import { loadConfig, sponsorshipNote } from "./config.ts";
 import { FileLoanBook } from "./loanbook.ts";
+import type { LoanBook } from "./loanbook.ts";
 import {
   runCollection,
   runLiquidation,
@@ -31,6 +33,32 @@ import {
 const LOAN_BOOK_PATH = resolve(
   process.env.POLARIS_LOAN_BOOK ?? "keeper/data/loanbook.json"
 );
+
+/**
+ * Mongo is the store when MONGODB_URI is set, and the file-backed book is the
+ * fallback. That is not just convenience: the file book keeps `doctor` and a
+ * dry run working on a fresh clone with no database, which is the difference
+ * between a new contributor seeing the keeper run in one command or hitting a
+ * connection error before they have read anything.
+ */
+function storage(): {
+  book: LoanBook;
+  receipts: InstanceType<typeof InMemoryReceiptStore> | MongoReceiptStore;
+  backend: "mongodb" | "file";
+} {
+  if (process.env.MONGODB_URI) {
+    return {
+      book: new MongoLoanBook() as unknown as LoanBook,
+      receipts: new MongoReceiptStore(),
+      backend: "mongodb",
+    };
+  }
+  return {
+    book: new FileLoanBook(LOAN_BOOK_PATH),
+    receipts: new InMemoryReceiptStore(),
+    backend: "file",
+  };
+}
 
 function build() {
   const config = loadConfig();
@@ -46,27 +74,37 @@ function build() {
       }
     },
   });
-  const receipts = new InMemoryReceiptStore();
+  const { book, receipts, backend } = storage();
   const keeper = new PolarisKeeper(
     client,
     { chainId: config.chainId, loanEngine: config.loanEngine },
     receipts
   );
-  const book = new FileLoanBook(LOAN_BOOK_PATH);
-  return { config, client, keeper, book, receipts };
+  return { config, client, keeper, book, receipts, backend };
 }
 
 async function doctor(): Promise<void> {
-  const { config } = build();
+  const { config, backend, book } = build();
   console.log("PolarisPay keeper configuration");
   console.log(`  KeeperHub:      ${config.baseUrl}`);
   console.log(`  API key:        ${config.apiKey.slice(0, 6)}… (${config.apiKey.length} chars)`);
   console.log(`  Chain:          ${config.chainId}`);
   console.log(`  LoanEngine:     ${config.loanEngine}`);
   console.log(`  Merchant escrow:${config.merchantEscrow ?? " (unset)"}`);
-  console.log(`  Loan book:      ${LOAN_BOOK_PATH}`);
+  console.log(`  Store:          ${backend}${backend === "file" ? ` (${LOAN_BOOK_PATH})` : ""}`);
   console.log(`  Dry run:        ${config.dryRun}`);
   console.log(`  Gas:            ${sponsorshipNote(config.chainId)}`);
+
+  if (backend === "mongodb") {
+    try {
+      const health = await ping();
+      const loans = await book.all();
+      console.log(`  MongoDB:        reachable in ${health.ms}ms, ${loans.length} loans`);
+    } catch (err) {
+      console.log(`  MongoDB:        UNREACHABLE -- ${(err as Error).message}`);
+    }
+  }
+
   console.log("");
   console.log(
     "Reminder: a sponsored execution runs through a smart account, so the keeper wallet's nonce, balance and explorer tx list will NOT change. Confirm charges with the execution status, never with the wallet."
@@ -160,5 +198,9 @@ try {
   }
 } catch (err) {
   reportError(err);
-  process.exit(1);
+  process.exitCode = 1;
+} finally {
+  // An open Mongo pool keeps the event loop alive, so a one-shot command would
+  // hang forever after printing its result. `run` never reaches here.
+  await closeDb().catch(() => undefined);
 }

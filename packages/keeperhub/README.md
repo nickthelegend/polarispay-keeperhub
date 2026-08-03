@@ -27,7 +27,7 @@ const client = new KeeperHubClient({ apiKey: process.env.KEEPERHUB_API_KEY! });
 
 const keeper = new PolarisKeeper(
   client,
-  { chainId: CHAIN.baseSepolia, loanEngine: "0x…" },
+  { chainId: CHAIN.sepolia, loanEngine: "0x…" },
   new InMemoryReceiptStore()
 );
 

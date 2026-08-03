@@ -45,7 +45,7 @@ function stubFetch(handlers: Handler[]): {
 }
 
 const DEPLOYMENT = {
-  chainId: 84_532,
+  chainId: 11_155_111,
   loanEngine: "0xLoanEngine",
 };
 
@@ -166,7 +166,7 @@ describe("terminal reconciliation", () => {
           status: "completed",
           sponsored: true,
           transactionHash: "0xdeadbeef",
-          transactionLink: "https://sepolia.basescan.org/tx/0xdeadbeef",
+          transactionLink: "https://sepolia.etherscan.io/tx/0xdeadbeef",
         },
       }),
     ]);

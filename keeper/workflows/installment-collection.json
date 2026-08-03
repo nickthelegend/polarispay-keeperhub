@@ -48,7 +48,7 @@
         "type": "action",
         "config": {
           "actionType": "web3/write-contract",
-          "network": "84532",
+          "network": "11155111",
           "contractAddress": "{{env.POLARIS_LOAN_ENGINE}}",
           "abiFunction": "repay",
           "functionArgs": "[\"{{@fetch-due:Fetch Due Installments.loanId}}\",\"{{@fetch-due:Fetch Due Installments.amountRaw}}\"]"
