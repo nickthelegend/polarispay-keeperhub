@@ -28,3 +28,8 @@ npm-debug.log*
 keeper/.runs/
 keeper/receipts/*.json
 !keeper/receipts/.gitkeep
+
+# hardhat
+packages/contracts/artifacts/
+packages/contracts/cache/
+packages/contracts/typechain-types/
