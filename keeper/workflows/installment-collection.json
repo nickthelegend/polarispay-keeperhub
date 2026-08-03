@@ -1,0 +1,91 @@
+{
+  "name": "PolarisPay - Installment Collection",
+  "description": "Every hour, ask the PolarisPay API which installments are due, then repay them on LoanEngine. Simulation runs first so a borrower who is short becomes a dunning event instead of a burnt transaction.",
+  "nodes": [
+    {
+      "id": "trigger-hourly",
+      "type": "trigger",
+      "data": {
+        "label": "Hourly",
+        "type": "trigger",
+        "config": {
+          "triggerType": "Schedule",
+          "cron": "0 * * * *"
+        }
+      }
+    },
+    {
+      "id": "fetch-due",
+      "type": "action",
+      "data": {
+        "label": "Fetch Due Installments",
+        "type": "action",
+        "config": {
+          "actionType": "webhook/http-request",
+          "method": "GET",
+          "url": "{{env.POLARIS_API_URL}}/api/keeper/installments/due"
+        }
+      }
+    },
+    {
+      "id": "has-due",
+      "type": "condition",
+      "data": {
+        "label": "Anything Due?",
+        "type": "condition",
+        "config": {
+          "left": "{{@fetch-due:Fetch Due Installments.count}}",
+          "operator": "gt",
+          "right": "0"
+        }
+      }
+    },
+    {
+      "id": "repay",
+      "type": "action",
+      "data": {
+        "label": "Repay Installment",
+        "type": "action",
+        "config": {
+          "actionType": "web3/write-contract",
+          "network": "84532",
+          "contractAddress": "{{env.POLARIS_LOAN_ENGINE}}",
+          "abiFunction": "repay",
+          "functionArgs": "[\"{{@fetch-due:Fetch Due Installments.loanId}}\",\"{{@fetch-due:Fetch Due Installments.amountRaw}}\"]"
+        }
+      }
+    },
+    {
+      "id": "record",
+      "type": "action",
+      "data": {
+        "label": "Record Receipt",
+        "type": "action",
+        "config": {
+          "actionType": "webhook/http-request",
+          "method": "POST",
+          "url": "{{env.POLARIS_API_URL}}/api/keeper/receipts"
+        }
+      }
+    },
+    {
+      "id": "notify-failure",
+      "type": "action",
+      "data": {
+        "label": "Notify Dunning",
+        "type": "action",
+        "config": {
+          "actionType": "telegram/send-message",
+          "message": "PolarisPay: installment collection failed for loan {{@fetch-due:Fetch Due Installments.loanId}} - entering dunning."
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "trigger-hourly", "target": "fetch-due" },
+    { "id": "e2", "source": "fetch-due", "target": "has-due" },
+    { "id": "e3", "source": "has-due", "target": "repay", "sourceHandle": "true" },
+    { "id": "e4", "source": "repay", "target": "record" },
+    { "id": "e5", "source": "repay", "target": "notify-failure", "sourceHandle": "false" }
+  ]
+}

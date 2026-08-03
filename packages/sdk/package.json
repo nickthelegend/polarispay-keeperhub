@@ -1,0 +1,29 @@
+{
+    "name": "polaris-sdk",
+    "version": "1.0.0",
+    "description": "Polaris Payment Gateway SDK",
+    "main": "dist/index.js",
+    "module": "dist/index.esm.js",
+    "typings": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [
+        "payment",
+        "polaris",
+        "crypto"
+    ],
+    "author": "Polaris Team",
+    "license": "MIT",
+    "peerDependencies": {
+        "react": ">=18",
+        "react-dom": ">=18",
+        "ethers": ">=6"
+    },
+    "devDependencies": {
+        "@types/react": "^18.2.0",
+        "@types/react-dom": "^18.2.0",
+        "typescript": "^5.0.0"
+    }
+}

@@ -1,0 +1,26 @@
+api_version = "2025-04"
+
+[[extensions]]
+type = "payments_extension"
+handle = "polaris-checkout-extension"
+name = "polaris-checkout-extension"
+
+
+# Offsite Payment Extension Configuration
+payment_session_url = "https://polaris-developers.vercel.app/api/payment-session"
+refund_session_url = "https://polaris-developers.vercel.app/api/refund-session"
+capture_session_url = "https://polaris-developers.vercel.app/api/capture-session"
+void_session_url = "https://polaris-developers.vercel.app/api/void-session"
+
+merchant_label = "Pay with Polaris Protocol"
+supported_countries = ["US"]
+supported_payment_methods = ["visa"]
+test_mode_available = true
+
+[[extensions.targeting]]
+target = "payments.offsite.render"
+
+[extensions.settings]
+fields = [
+  { key = "payment_gateway_name", type = "single_line_text_field", name = "Payment Gateway Name", description = "Display name for the Polaris payment method", default_value = "Pay with Polaris Protocol" }
+]

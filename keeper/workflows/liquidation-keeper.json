@@ -1,0 +1,94 @@
+{
+  "name": "PolarisPay - Liquidation Keeper",
+  "description": "Every 50 blocks, test each liquidation candidate with LoanEngine.checkLiquidatable and liquidate the ones that qualify. The read and the write happen in one atomic step so a last-second repayment is never liquidated on a stale read.",
+  "nodes": [
+    {
+      "id": "trigger-blocks",
+      "type": "trigger",
+      "data": {
+        "label": "Every 50 Blocks",
+        "type": "trigger",
+        "config": {
+          "triggerType": "Block",
+          "blockInterval": 50,
+          "network": "84532"
+        }
+      }
+    },
+    {
+      "id": "fetch-candidates",
+      "type": "action",
+      "data": {
+        "label": "Fetch Liquidation Candidates",
+        "type": "action",
+        "config": {
+          "actionType": "webhook/http-request",
+          "method": "GET",
+          "url": "{{env.POLARIS_API_URL}}/api/keeper/loans/liquidation-candidates"
+        }
+      }
+    },
+    {
+      "id": "check-liquidatable",
+      "type": "action",
+      "data": {
+        "label": "Check Liquidatable",
+        "type": "action",
+        "config": {
+          "actionType": "web3/read-contract",
+          "network": "84532",
+          "contractAddress": "{{env.POLARIS_LOAN_ENGINE}}",
+          "abiFunction": "checkLiquidatable",
+          "functionArgs": "[\"{{@fetch-candidates:Fetch Liquidation Candidates.loanId}}\"]"
+        }
+      }
+    },
+    {
+      "id": "is-liquidatable",
+      "type": "condition",
+      "data": {
+        "label": "Is Liquidatable?",
+        "type": "condition",
+        "config": {
+          "left": "{{@check-liquidatable:Check Liquidatable.result}}",
+          "operator": "eq",
+          "right": "true"
+        }
+      }
+    },
+    {
+      "id": "liquidate",
+      "type": "action",
+      "data": {
+        "label": "Liquidate Loan",
+        "type": "action",
+        "config": {
+          "actionType": "web3/write-contract",
+          "network": "84532",
+          "contractAddress": "{{env.POLARIS_LOAN_ENGINE}}",
+          "abiFunction": "liquidate",
+          "functionArgs": "[\"{{@fetch-candidates:Fetch Liquidation Candidates.loanId}}\"]"
+        }
+      }
+    },
+    {
+      "id": "alert",
+      "type": "action",
+      "data": {
+        "label": "Alert Risk Channel",
+        "type": "action",
+        "config": {
+          "actionType": "discord/send-message",
+          "message": "PolarisPay: liquidated loan {{@fetch-candidates:Fetch Liquidation Candidates.loanId}}."
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "trigger-blocks", "target": "fetch-candidates" },
+    { "id": "e2", "source": "fetch-candidates", "target": "check-liquidatable" },
+    { "id": "e3", "source": "check-liquidatable", "target": "is-liquidatable" },
+    { "id": "e4", "source": "is-liquidatable", "target": "liquidate", "sourceHandle": "true" },
+    { "id": "e5", "source": "liquidate", "target": "alert" }
+  ]
+}

@@ -1,0 +1,9 @@
+[
+    "https://www.shopify.com",
+    "https://*.shopify.com",
+    "https://*.myshopify.org",
+    "https://*.myshopify.com",
+    "https://*.ngrok.io",
+    "https://*.polaris-protocol.com",
+    "https://polaris-checkout-app.vercel.app"
+]

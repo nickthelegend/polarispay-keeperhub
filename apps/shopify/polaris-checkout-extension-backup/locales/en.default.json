@@ -1,0 +1,7 @@
+{
+    "paymentMethodName": "Pay with Polaris Protocol",
+    "paymentMethodDescription": "Secure crypto payments via Creditcoin Network. Zero-knowledge proof powered.",
+    "payButton": "Pay with Polaris",
+    "loading": "Connecting to Neural Terminal...",
+    "error": "Connection interrupted. Retrying..."
+}
