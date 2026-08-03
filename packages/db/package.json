@@ -4,15 +4,19 @@
   "private": true,
   "type": "module",
   "description": "MongoDB data layer for PolarisPay: merchants, loans, installments, receipts and the event log.",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "migrate": "node --experimental-strip-types src/migrate.ts",
-    "seed": "node --experimental-strip-types src/seed.ts",
-    "sync": "node --experimental-strip-types src/sync-chain.ts"
+    "migrate": "npm run build && node dist/migrate.js",
+    "seed": "npm run build && node dist/seed.js",
+    "sync": "npm run build && node dist/sync-chain.js"
   },
   "dependencies": {
     "mongodb": "^6.12.0"
@@ -20,5 +24,9 @@
   "devDependencies": {
     "@types/node": "^22.20.1",
     "typescript": "^5.9.3"
-  }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ]
 }

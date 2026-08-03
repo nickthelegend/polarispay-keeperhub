@@ -4,13 +4,24 @@ import { PrivyProvider } from '@privy-io/react-auth';
 import { ReactNode } from 'react';
 import { sepolia } from 'viem/chains';
 
-// Use environment variable or fallback to a demo ID (which likely won't work for auth but allows render)
-// Ideally, the user MUST provide this in .env.local
 const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID || '';
 
+// Privy app IDs are 24-25 character cuids. Anything shorter is a placeholder
+// or a truncated paste, and PrivyProvider throws on it at construction.
+const isConfigured = PRIVY_APP_ID.length >= 20;
+
 export default function Providers({ children }: { children: ReactNode }) {
-    if (!PRIVY_APP_ID) {
-        console.warn('WARNING: NEXT_PUBLIC_PRIVY_APP_ID is missing in environment variables.');
+    // Providers sits in the root layout, so a PrivyProvider that throws takes
+    // down every route in the app -- including ones that never touch auth, like
+    // /demo and the API-backed read views. An unconfigured optional integration
+    // should degrade to "you cannot sign in", not "nothing renders".
+    if (!isConfigured) {
+        if (typeof window !== 'undefined') {
+            console.warn(
+                '[Providers] NEXT_PUBLIC_PRIVY_APP_ID is missing or malformed. Wallet sign-in is disabled; read-only routes still work.'
+            );
+        }
+        return <>{children}</>;
     }
 
     return (

@@ -5,7 +5,7 @@ export {
   getDb,
   mongoUri,
   ping,
-} from "./client.ts";
+} from "./client.js";
 
 export {
   buildInstallments,
@@ -13,10 +13,10 @@ export {
   MongoLoanBook,
   MongoReceiptStore,
   recordEvent,
-} from "./loanbook.ts";
-export type { BookLoan } from "./loanbook.ts";
+} from "./loanbook.js";
+export type { BookLoan } from "./loanbook.js";
 
-export { COLLECTIONS, INDEXES } from "./schema.ts";
+export { COLLECTIONS, INDEXES } from "./schema.js";
 export type {
   EventDoc,
   InstallmentDoc,
@@ -26,4 +26,4 @@ export type {
   MerchantDoc,
   MerchantStatus,
   ReceiptDoc,
-} from "./schema.ts";
+} from "./schema.js";

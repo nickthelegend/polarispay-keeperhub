@@ -89,7 +89,7 @@ export default function Dashboard() {
 
 /* ------------------------------------------------------------------ */
 
-function Ledger({
+export function Ledger({
     data,
     error,
     isLoading,

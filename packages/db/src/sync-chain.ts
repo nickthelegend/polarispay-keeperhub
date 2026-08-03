@@ -9,9 +9,9 @@
  * silently. Safe to run repeatedly.
  */
 
-import { closeDb, collections, ensureIndexes } from "./client.ts";
-import { buildInstallments, formatUnits } from "./loanbook.ts";
-import type { LoanDoc, MerchantDoc } from "./schema.ts";
+import { closeDb, collections, ensureIndexes } from "./client.js";
+import { buildInstallments, formatUnits } from "./loanbook.js";
+import type { LoanDoc, MerchantDoc } from "./schema.js";
 
 const RPC = process.env.SEPOLIA_RPC_URL ?? "https://ethereum-sepolia-rpc.publicnode.com";
 const CHAIN_ID = Number(process.env.CHAIN_ID ?? 11_155_111);

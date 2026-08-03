@@ -37,8 +37,22 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
     uint256 public constant INTEREST_RATE_BPS = 1000; // 10%
     /// Share of interest kept by the protocol.
     uint256 public constant PROTOCOL_FEE_BPS = 2000; // 20%
-    /// How long an installment may be overdue before the loan is liquidatable.
-    uint256 public constant GRACE_PERIOD = 3 days;
+    /// Default grace period when the deployer does not specify one.
+    uint256 public constant DEFAULT_GRACE_PERIOD = 3 days;
+    /// Upper bound, so a misconfigured deployment cannot make loans
+    /// effectively un-liquidatable.
+    uint256 public constant MAX_GRACE_PERIOD = 30 days;
+
+    /**
+     * @notice How long an installment may be overdue before the loan becomes
+     *         liquidatable.
+     * @dev Immutable per deployment rather than a global constant: a consumer
+     *      book wants days, a machine-to-machine book wants minutes, and a
+     *      testnet deployment wants seconds so the liquidation path can be
+     *      demonstrated without waiting three days. Set once at construction
+     *      so it can never be changed under a live loan.
+     */
+    uint256 public immutable gracePeriod;
 
     enum LoanStatus {
         Active,
@@ -97,6 +111,7 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
     error InvalidInstallments();
     error NotLiquidatable();
     error ExceedsCreditLimit();
+    error InvalidGracePeriod();
 
     modifier onlyOriginator() {
         if (!isOriginator[msg.sender]) revert NotOriginator();
@@ -107,8 +122,11 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
         address initialOwner,
         IERC20 _stablecoin,
         ScoreManager _scoreManager,
-        address _treasury
+        address _treasury,
+        uint256 _gracePeriod
     ) Ownable(initialOwner) {
+        if (_gracePeriod > MAX_GRACE_PERIOD) revert InvalidGracePeriod();
+        gracePeriod = _gracePeriod == 0 ? DEFAULT_GRACE_PERIOD : _gracePeriod;
         stablecoin = _stablecoin;
         scoreManager = _scoreManager;
         treasury = _treasury;
@@ -228,7 +246,7 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
         stablecoin.safeTransferFrom(l.borrower, address(this), amount);
 
         bool onTime = block.timestamp <=
-            installmentDueAt(loanId, l.installmentsPaid) + GRACE_PERIOD;
+            installmentDueAt(loanId, l.installmentsPaid) + gracePeriod;
 
         l.totalRepaid += uint128(amount);
         l.installmentsPaid += 1;
@@ -268,7 +286,7 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
         if (l.borrower == address(0)) return false;
         if (l.status != LoanStatus.Active) return false;
         if (l.installmentsPaid >= l.installmentCount) return false;
-        return block.timestamp > installmentDueAt(loanId, l.installmentsPaid) + GRACE_PERIOD;
+        return block.timestamp > installmentDueAt(loanId, l.installmentsPaid) + gracePeriod;
     }
 
     /// @notice The action half. Reverts unless the condition genuinely holds.

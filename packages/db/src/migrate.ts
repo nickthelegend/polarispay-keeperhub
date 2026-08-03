@@ -4,7 +4,7 @@
  *   node --experimental-strip-types src/migrate.ts
  */
 
-import { closeDb, ensureIndexes, ping } from "./client.ts";
+import { closeDb, ensureIndexes, ping } from "./client.js";
 
 const started = Date.now();
 

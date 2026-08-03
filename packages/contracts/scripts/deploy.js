@@ -29,12 +29,18 @@ async function main() {
   const usdc = await deploy("MockUSDC");
   const scoreManager = await deploy("ScoreManager", [deployer.address]);
   const registry = await deploy("MerchantRegistry", [deployer.address]);
+  // Grace period is per-deployment. Production wants days; a demo deployment
+  // wants seconds so the liquidation path can be exercised on chain without
+  // waiting three days for it.
+  const graceSeconds = Number(process.env.POLARIS_GRACE_SECONDS ?? 3 * 24 * 60 * 60);
   const loanEngine = await deploy("PolarisLoanEngine", [
     deployer.address,
     await usdc.getAddress(),
     await scoreManager.getAddress(),
     deployer.address, // treasury
+    graceSeconds,
   ]);
+  console.log(`  gracePeriod: ${graceSeconds}s`);
 
   // The LoanEngine is the only contract allowed to move a credit score, and
   // the deployer is the only originator until the API's signer is registered.

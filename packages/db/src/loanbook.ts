@@ -5,8 +5,8 @@
  * implementation for this one is a one-line change in the keeper's wiring.
  */
 
-import { collections } from "./client.ts";
-import type { InstallmentDoc, LoanDoc } from "./schema.ts";
+import { collections } from "./client.js";
+import type { InstallmentDoc, LoanDoc } from "./schema.js";
 
 export type BookLoan = {
   loanId: string;

@@ -10,9 +10,9 @@
 
 import { createHash, randomUUID } from "node:crypto";
 
-import { closeDb, collections, ensureIndexes } from "./client.ts";
-import { buildInstallments } from "./loanbook.ts";
-import type { LoanDoc, MerchantDoc } from "./schema.ts";
+import { closeDb, collections, ensureIndexes } from "./client.js";
+import { buildInstallments } from "./loanbook.js";
+import type { LoanDoc, MerchantDoc } from "./schema.js";
 
 const CHAIN_ID = Number(process.env.CHAIN_ID ?? 11_155_111);
 const MERCHANT_ID = "merch_demo_polaris";

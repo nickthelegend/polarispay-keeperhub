@@ -15,7 +15,7 @@ import {
   type LoanDoc,
   type MerchantDoc,
   type ReceiptDoc,
-} from "./schema.ts";
+} from "./schema.js";
 
 let cached: { client: MongoClient; db: Db } | undefined;
 
