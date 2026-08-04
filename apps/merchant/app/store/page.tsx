@@ -192,7 +192,7 @@ export default function Store() {
       await readWallet(wallet.address, provider);
       setNote({
         kind: 'ok',
-        text: `Plan open — loan #${body.loanId}. Instalments of ${perInstalment} are collected automatically.`,
+        text: `Plan open. Loan #${body.loanId}, Instalments of ${perInstalment} are collected automatically.`,
         url: body.transactionHash ? explorer(body.transactionHash) : undefined,
       });
     } catch (err) {

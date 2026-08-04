@@ -57,7 +57,7 @@ const fetcher = (url: string) =>
 
 /**
  * Demo borrower shown when no wallet is connected. This is the address that
- * actually holds plans on Sepolia, so the page is viewable — and recordable —
+ * actually holds plans on Sepolia, so the page is viewable - and recordable -
  * without a wallet. Read-only either way: nothing here is actionable.
  */
 const DEMO_BORROWER =
@@ -114,8 +114,8 @@ export default function PlansPage() {
 
         <div className="mt-7 max-w-md">
           <div className="flex items-baseline justify-between font-mono text-[11px] text-white/45">
-            <span>{data ? `${data.usedDisplay} in use` : "—"}</span>
-            <span>{data ? `${data.limitDisplay} limit` : "—"}</span>
+            <span>{data ? `${data.usedDisplay} in use` : "-"}</span>
+            <span>{data ? `${data.limitDisplay} limit` : "-"}</span>
           </div>
           {/* A single utilisation rule, not a decorative bar: the fill is the
               share of the limit already committed. */}
@@ -313,7 +313,7 @@ function PlanRow({
                 {i.state === "paid"
                   ? "Collected"
                   : i.state === "dunning"
-                    ? `Retrying — attempt ${i.attempts}`
+                    ? `Retrying, attempt ${i.attempts}`
                     : formatDue(i.dueAt)}
               </span>
               {i.transactionHash && (

@@ -23,7 +23,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${spaceGrotesk.variable} ${jetBrainsMono.variable} bg-background text-foreground antialiased`}>
-        <div className="scanline" />
         <Providers>
           <Header />
           <main className="pt-20">

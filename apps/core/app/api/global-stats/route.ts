@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  * Protocol-wide statistics, derived from the book.
  *
  * This previously read a `globalStats` collection that nothing ever wrote, so
- * it returned `null` — a 200 with no body, which every caller had to treat as
+ * it returned `null` - a 200 with no body, which every caller had to treat as
  * either "no data" or "broken" without being able to tell which. The numbers
  * are computed from the loans that actually exist.
  */

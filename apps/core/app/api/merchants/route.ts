@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  * Public merchant directory.
  *
  * This previously returned raw merchant documents, which included
- * `apiKeyHash` and `webhookSecret` — credentials, on an unauthenticated GET.
+ * `apiKeyHash` and `webhookSecret` - credentials, on an unauthenticated GET.
  * Only fields a shopper needs to see are projected now, and the projection is
  * an allowlist rather than a blocklist so a new sensitive field cannot leak by
  * being forgotten.

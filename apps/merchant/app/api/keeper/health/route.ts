@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 /**
  * Keeper health, for the merchant ledger.
  *
- * A merchant's real question is not "is the API up" — it is "is anything
+ * A merchant's real question is not "is the API up" - it is "is anything
  * collecting my money right now". This answers that from the book rather than
  * from anything the keeper says about itself, so a stopped keeper shows as
  * stopped instead of showing nothing at all.

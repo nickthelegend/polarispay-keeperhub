@@ -1,5 +1,5 @@
 /**
- * POLARIS PROTOCOL — REVERT MAPPER
+ * POLARIS PROTOCOL - REVERT MAPPER
  * Maps cryptic Ethereum revert strings and Solidity error selectors to human-readable messages.
  */
 

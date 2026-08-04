@@ -32,11 +32,11 @@ export function computeCreditLine(
 }
 
 /**
- * Map a credit score (300–850) to a tier and color.
- *   300–499  → Poor,      Red
- *   500–649  → Fair,      Yellow
- *   650–749  → Good,      Green
- *   750–850  → Excellent, Bright Green
+ * Map a credit score (300-850) to a tier and color.
+ *   300-499  → Poor,      Red
+ *   500-649  → Fair,      Yellow
+ *   650-749  → Good,      Green
+ *   750-850  → Excellent, Bright Green
  */
 export function getScoreTier(score: number): { tier: string; color: string } {
   if (score < 500) return { tier: "Poor", color: "Red" };

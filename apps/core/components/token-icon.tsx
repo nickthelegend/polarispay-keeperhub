@@ -32,7 +32,7 @@ export function TokenIcon({
     )
   }
 
-  // ETH/WETH logo is a tall portrait SVG — wrap it to clip and center properly
+  // ETH/WETH logo is a tall portrait SVG - wrap it to clip and center properly
   const isTallLogo = symbol.toUpperCase() === "ETH" || symbol.toUpperCase() === "WETH"
 
   if (isTallLogo) {

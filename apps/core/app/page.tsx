@@ -479,7 +479,7 @@ function SignedOut({ stats }: { stats?: Stats }) {
         your own history.
       </h1>
       <p className="mt-5 max-w-lg text-base leading-relaxed text-foreground/55">
-        Split any checkout into four. No application and no credit bureau — a new wallet starts at a
+        Split any checkout into four. No application and no credit bureau. A new wallet starts at a
         500 baseline and earns its way up by repaying on time. Instalments collect themselves, with
         gas sponsored.
       </p>

@@ -168,7 +168,7 @@ export default function DocsPage() {
         <div className="space-y-3 text-sm text-foreground/60 leading-relaxed">
           <p>
             When an instalment comes due, a keeper checks the loan on chain and charges it through
-            KeeperHub's execution API. Gas is sponsored, so the shopper never needs ETH to repay —
+            KeeperHub's execution API. Gas is sponsored, so the shopper never needs ETH to repay,
             which removes the single most common reason a repayment fails.
           </p>
           <p>
@@ -178,7 +178,7 @@ export default function DocsPage() {
           </p>
           <p>
             Every execution is idempotent per attempt, so a retried request never charges a shopper
-            twice — and because a sponsored execution runs through a smart account, the keeper
+            twice. Because a sponsored execution runs through a smart account, the keeper
             wallet's own nonce and balance never move. Confirm charges from the execution status,
             not from the relayer's transaction list.
           </p>

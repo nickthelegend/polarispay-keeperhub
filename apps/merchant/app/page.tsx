@@ -7,19 +7,18 @@ import Image from 'next/image';
 import useSWR from 'swr';
 import { ArrowRight, ShoppingBag } from 'lucide-react';
 
+import { CheckoutStack } from '@/components/CheckoutStack';
+
 /**
  * The front door.
  *
- * What stood here was a splash: a logo, a tagline about "the complete payment
- * stack", three same-size feature cards, and a code sample importing a
- * component that does not exist from a package that is not ours. It named no
- * product and offered no evidence, and the one concrete thing on it would not
- * have compiled.
+ * Five sections, five different shapes: an asymmetric hero carrying a real
+ * screenshot, a proof band ruled off rather than boxed, a pinned stack for the
+ * checkout sequence, a code-dominant split, and a hairline footer. Repeating one
+ * shape is what made the earlier version read as a template.
  *
- * A merchant deciding whether to integrate wants three answers: what this does
- * for my checkout, whether it actually works, and what I have to write. Those,
- * in that order -- and the middle one is answered from the live book rather
- * than with an adjective.
+ * The only image on the page is a capture of the real store, taken from the
+ * running app. A stock photograph would say nothing true about a checkout.
  */
 
 const fetcher = async (url: string) => {
@@ -29,15 +28,28 @@ const fetcher = async (url: string) => {
 };
 
 type Health = {
-    status: string;
     book: {
         activeLoans: number;
-        overdueInstalments: number;
         inDunning: number;
         liquidationCandidates: number;
         collectionRate: number;
     };
 };
+
+const STEPS = [
+    {
+        title: 'The chain underwrites the shopper',
+        body: 'No application and no bureau. The limit is read from the wallet’s own repayment history, so a first-time shopper starts at a baseline and earns their way up by paying on time.',
+    },
+    {
+        title: 'They approve once, and the plan opens',
+        body: 'A single signature covers the whole schedule. Nothing is locked up front, and the shopper never pays gas to start a plan.',
+    },
+    {
+        title: 'The keeper collects, and you are settled',
+        body: 'Each instalment is charged on its due date. A charge that fails enters a retry ladder rather than being written off, and what is collected is paid out to you on schedule.',
+    },
+];
 
 const SNIPPET = `import { PayWithPolarisBNPL } from "@polarispay/sdk";
 
@@ -58,111 +70,118 @@ export default function Home() {
 
     return (
         <div className="min-h-screen bg-background font-display text-foreground selection:bg-primary/30">
-            <main className="mx-auto max-w-[1180px] px-6 pb-28 md:px-10">
-                {/* The claim is specific -- split a checkout into four -- because
-                    "complete payment stack" is what every one of these says. */}
-                <section className="pt-24 pb-20 md:pt-32">
-                    <Image
-                        src="/logo.png"
-                        alt="Polaris"
-                        width={180}
-                        height={48}
-                        className="h-10 w-auto"
-                        priority
-                    />
-                    <h1 className="mt-10 max-w-[16ch] text-[clamp(2.5rem,6.5vw,4.5rem)] font-semibold leading-[1.02] tracking-[-0.035em]">
-                        Let shoppers pay in four.
-                    </h1>
-                    <p className="mt-6 max-w-[54ch] text-[17px] leading-relaxed text-foreground/55">
-                        A buy-now-pay-later checkout for on-chain stores. Your shopper&apos;s limit
-                        is underwritten from their own wallet history, the instalments collect
-                        themselves, and you are settled without chasing anyone.
-                    </p>
-
-                    <div className="mt-10 flex flex-wrap gap-3">
-                        <Link
-                            href="/store"
-                            className="inline-flex items-center gap-2 rounded-[calc(var(--radius)-2px)] bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 active:scale-[0.99]"
-                        >
-                            <ShoppingBag className="size-4" />
-                            Try the store
-                        </Link>
-                        <Link
-                            href="/dashboard"
-                            className="inline-flex items-center gap-2 rounded-[calc(var(--radius)-2px)] border border-foreground/12 px-6 py-3.5 text-sm font-medium text-foreground/75 transition-colors hover:border-foreground/28 hover:text-foreground"
-                        >
-                            Merchant console
-                            <ArrowRight className="size-4" />
-                        </Link>
-                    </div>
-                </section>
-
-                {/* Proof before persuasion, taken from the running keeper rather
-                    than written down here. */}
-                {health && (
-                    <section className="border-y border-foreground/8 py-10">
-                        <dl className="flex flex-wrap gap-x-14 gap-y-8">
-                            <Proof
-                                term="Collected on time"
-                                value={`${health.book.collectionRate.toFixed(0)}%`}
-                                accent={health.book.collectionRate >= 95}
-                            />
-                            <Proof term="Plans collecting" value={String(health.book.activeLoans)} />
-                            <Proof term="In dunning" value={String(health.book.inDunning)} />
-                            <Proof
-                                term="Written off"
-                                value={String(health.book.liquidationCandidates)}
-                            />
-                        </dl>
-                        <p className="mt-7 max-w-[62ch] text-sm leading-relaxed text-foreground/45">
-                            Read from the live book, not a marketing figure. Every instalment behind
-                            these was charged by a keeper running on KeeperHub, with gas sponsored,
-                            and each one has a transaction you can open.
-                        </p>
-                    </section>
-                )}
-
-                {/* Sequence, so the numbering carries real order rather than
-                    decorating three interchangeable cards. */}
-                <section className="py-20">
-                    <h2 className="text-[clamp(1.5rem,3vw,2rem)] font-semibold tracking-[-0.02em]">
-                        What happens at checkout
-                    </h2>
-                    <ol className="mt-10 space-y-px overflow-hidden rounded-[var(--radius)] border border-foreground/8">
-                        <Step
-                            n={1}
-                            title="The chain underwrites the shopper"
-                            body="No application and no bureau. The limit comes from the wallet's own repayment history, so a first-time shopper starts at a baseline and earns their way up."
-                        />
-                        <Step
-                            n={2}
-                            title="They approve once, and the plan opens"
-                            body="One signature covers the whole schedule. Nothing is locked up front, and the shopper never pays gas to start a plan."
-                        />
-                        <Step
-                            n={3}
-                            title="The keeper collects, and you are settled"
-                            body="Each instalment is charged on its due date. A charge that fails enters a retry ladder rather than being written off, and what is collected is paid out to you on schedule."
-                        />
-                    </ol>
-                </section>
-
-                {/* The integration, in the code that actually ships. */}
-                <section className="grid gap-10 border-t border-foreground/8 pt-20 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-16">
+            {/* Asymmetric split. The copy holds the left five columns and the
+                product sits in the right seven, bleeding past the container so
+                the screenshot reads as a window rather than a framed tile. */}
+            <section className="mx-auto max-w-[1400px] px-6 pt-20 md:px-10 md:pt-24">
+                <div className="grid items-center gap-14 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
                     <div>
-                        <h2 className="text-[clamp(1.5rem,3vw,2rem)] font-semibold tracking-[-0.02em]">
+                        <h1
+                            data-reveal
+                            style={{ ["--reveal-index" as string]: 0 }}
+                            className="max-w-[13ch] text-[clamp(2.75rem,6vw,4.25rem)] font-semibold leading-[1.02] tracking-[-0.038em]"
+                        >
+                            Let shoppers pay in four.
+                        </h1>
+                        <p
+                            data-reveal
+                            style={{ ["--reveal-index" as string]: 1 }}
+                            className="mt-6 max-w-[46ch] text-[17px] leading-relaxed text-foreground/55"
+                        >
+                            A buy-now-pay-later checkout for on-chain stores. The limit comes from
+                            the shopper&apos;s own wallet history.
+                        </p>
+                        <div
+                            data-reveal
+                            style={{ ["--reveal-index" as string]: 2 }}
+                            className="mt-9 flex flex-wrap gap-3"
+                        >
+                            <Link
+                                href="/store"
+                                className="inline-flex items-center gap-2 rounded-[calc(var(--radius)-2px)] bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 active:scale-[0.99]"
+                            >
+                                <ShoppingBag className="size-4" />
+                                Try the store
+                            </Link>
+                            <Link
+                                href="/dashboard"
+                                className="inline-flex items-center gap-2 rounded-[calc(var(--radius)-2px)] border border-foreground/12 px-6 py-3.5 text-sm font-medium text-foreground/75 transition-colors hover:border-foreground/28 hover:text-foreground"
+                            >
+                                Merchant console
+                                <ArrowRight className="size-4" />
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div
+                        data-reveal
+                        style={{ ["--reveal-index" as string]: 2 }}
+                        className="relative"
+                    >
+                        <div className="surface overflow-hidden">
+                            <Image
+                                src="/shots/checkout.png"
+                                alt="The Polaris checkout: three products priced in full and split into four payments, beside the checkout panel."
+                                width={2230}
+                                height={740}
+                                className="w-full"
+                                priority
+                            />
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Ruled band, not cards. Four figures on one line with hairlines
+                above and below is a different shape from anything else here. */}
+            {health && (
+                <section className="mx-auto mt-24 max-w-[1400px] px-6 md:px-10">
+                    <dl className="grid grid-cols-2 gap-y-9 border-y border-foreground/8 py-10 sm:grid-cols-4">
+                        <Proof
+                            term="Collected on time"
+                            value={`${health.book.collectionRate.toFixed(0)}%`}
+                            accent={health.book.collectionRate >= 95}
+                        />
+                        <Proof term="Plans collecting" value={String(health.book.activeLoans)} />
+                        <Proof term="In dunning" value={String(health.book.inDunning)} />
+                        <Proof term="Written off" value={String(health.book.liquidationCandidates)} />
+                    </dl>
+                    <p className="mt-6 max-w-[58ch] text-sm leading-relaxed text-foreground/45">
+                        Read from the live book. Every instalment behind these was charged by a
+                        keeper running on KeeperHub, with gas sponsored, and each one has a
+                        transaction you can open.
+                    </p>
+                </section>
+            )}
+
+            {/* Pinned sequence. */}
+            <section className="mx-auto mt-28 max-w-[1400px] px-6 md:px-10">
+                <h2 className="max-w-[18ch] text-[clamp(1.75rem,3.5vw,2.5rem)] font-semibold leading-[1.08] tracking-[-0.03em]">
+                    What happens at checkout
+                </h2>
+                <div className="mt-12">
+                    <CheckoutStack steps={STEPS} />
+                </div>
+            </section>
+
+            {/* Code-dominant split, reversing the hero's weighting so the two
+                two-column sections do not read as the same layout twice. */}
+            <section className="mx-auto mt-28 max-w-[1400px] px-6 pb-28 md:px-10">
+                <div className="grid gap-12 border-t border-foreground/8 pt-16 lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-20">
+                    <div className="lg:sticky lg:top-28 lg:self-start">
+                        <h2 className="text-[clamp(1.75rem,3.5vw,2.5rem)] font-semibold leading-[1.08] tracking-[-0.03em]">
                             One component
                         </h2>
-                        <p className="mt-5 max-w-[46ch] leading-relaxed text-foreground/55">
-                            It reads the shopper&apos;s limit itself and falls back to paying in full
-                            when the limit will not stretch. If you want your own UI, the same
-                            operations are available headless, and to an agent over MCP.
+                        <p className="mt-5 max-w-[42ch] leading-relaxed text-foreground/55">
+                            It reads the limit itself and falls back to paying in full when the limit
+                            will not stretch. If you want your own UI, the same operations are
+                            available headless, and to an agent over MCP.
                         </p>
                         <Link
                             href="/store"
                             className="mt-7 inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
                         >
-                            See it running
+                            Try the store
                             <ArrowRight className="size-3.5" />
                         </Link>
                     </div>
@@ -176,17 +195,17 @@ export default function Home() {
                                 checkout.tsx
                             </span>
                         </div>
-                        <pre className="overflow-x-auto px-4 py-4">
-                            <code className="font-mono text-[12.5px] leading-relaxed text-foreground/75">
+                        <pre className="overflow-x-auto px-5 py-5">
+                            <code className="font-mono text-[13px] leading-[1.7] text-foreground/75">
                                 {SNIPPET}
                             </code>
                         </pre>
                     </div>
-                </section>
-            </main>
+                </div>
+            </section>
 
             <footer className="border-t border-foreground/8">
-                <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-4 px-6 py-8 md:px-10">
+                <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4 px-6 py-8 md:px-10">
                     <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/30">
                         Polaris · Sepolia
                     </p>
@@ -209,28 +228,12 @@ function Proof({ term, value, accent }: { term: string; value: string; accent?: 
         <div>
             <dt className="label">{term}</dt>
             <dd
-                className={`figure mt-2 text-[clamp(1.5rem,3vw,2rem)] font-semibold ${
+                className={`figure mt-2.5 text-[clamp(1.75rem,3.5vw,2.5rem)] font-semibold ${
                     accent ? 'text-primary' : ''
                 }`}
             >
                 {value}
             </dd>
         </div>
-    );
-}
-
-function Step({ n, title, body }: { n: number; title: string; body: string }) {
-    return (
-        <li className="flex gap-5 bg-card/40 px-5 py-6 sm:gap-7 sm:px-7">
-            <span className="figure shrink-0 font-mono text-sm text-primary/70">
-                {String(n).padStart(2, '0')}
-            </span>
-            <div className="min-w-0">
-                <h3 className="font-medium leading-tight">{title}</h3>
-                <p className="mt-2 max-w-[64ch] text-sm leading-relaxed text-foreground/50">
-                    {body}
-                </p>
-            </div>
-        </li>
     );
 }

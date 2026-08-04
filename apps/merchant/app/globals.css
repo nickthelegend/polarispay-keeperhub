@@ -82,47 +82,6 @@
 
 
 /* Glass & Glow Helpers */
-.glass-card {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.neon-glow {
-  box-shadow: 0 0 20px rgba(166, 242, 74, 0.2);
-}
-
-.neon-text {
-  color: #A6F24A;
-  text-shadow: 0 0 10px rgba(166, 242, 74, 0.7), 0 0 20px rgba(166, 242, 74, 0.3);
-}
-
-
-.glow-bg {
-  background: radial-gradient(circle at 50% -20%, rgba(167, 242, 74, 0.12) 0%, rgba(10, 11, 16, 0) 60%);
-}
-
-.scanline {
-  width: 100%;
-  height: 2px;
-  background: rgba(166, 242, 74, 0.05);
-  position: absolute;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-  z-index: 50;
-  animation: scan 8s linear infinite;
-}
-
-@keyframes scan {
-  from {
-    top: 0;
-  }
-
-  to {
-    top: 100%;
-  }
-}
 /* ---------------------------------------------------------------------------
  * Surfaces, rules and figures.
  *
@@ -233,5 +192,37 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: color-mix(in oklab, var(--color-foreground) 60%, transparent);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Hero entrance.
+ *
+ * Pure CSS, deliberately. The first version set opacity to 0 in JS and animated
+ * it back with GSAP, which fails in every environment where requestAnimationFrame
+ * is throttled: a background tab, a restored session, a middle-clicked link. The
+ * tween froze at zero and the hero rendered blank until the tab was focused.
+ *
+ * A CSS animation with `both` fill cannot strand the content: if it never runs,
+ * the element is simply visible, and under reduced motion the whole rule is
+ * skipped. GSAP is kept for the pinned stack, where scroll-linked pinning is
+ * something CSS genuinely cannot do.
+ * ------------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] {
+    animation: reveal-rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(var(--reveal-index, 0) * 80ms);
+  }
+}
+
+@keyframes reveal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }

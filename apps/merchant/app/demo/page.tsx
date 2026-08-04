@@ -13,7 +13,7 @@ import { Ledger } from '../dashboard/page';
  * The real dashboard is wallet-gated, which is correct for a merchant managing
  * their own money and wrong for anyone evaluating the product. This renders the
  * identical component against the identical API for a fixed demo merchant, so
- * the ledger can be seen — and recorded — without a wallet at all. It is
+ * the ledger can be seen - and recorded - without a wallet at all. It is
  * read-only by construction: there is nothing here to act on.
  */
 

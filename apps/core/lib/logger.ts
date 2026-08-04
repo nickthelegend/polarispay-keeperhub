@@ -1,5 +1,5 @@
 /**
- * POLARIS PROTOCOL — STRUCTURED LOGGER
+ * POLARIS PROTOCOL - STRUCTURED LOGGER
  * Standardizes [POLARIS] prefix and log levels across the application.
  */
 

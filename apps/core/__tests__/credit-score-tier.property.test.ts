@@ -7,8 +7,8 @@ import { getScoreTier } from "@/lib/credit-utils";
  *
  * Property 2: Credit score tier classification
  * For any credit score in the range [300, 850], the tier classification function
- * shall return "Poor" for 300–499, "Fair" for 500–649, "Good" for 650–749,
- * and "Excellent" for 750–850, and the associated color shall match the tier.
+ * shall return "Poor" for 300-499, "Fair" for 500-649, "Good" for 650-749,
+ * and "Excellent" for 750-850, and the associated color shall match the tier.
  */
 describe("Property 2: Credit score tier classification", () => {
   it("should return the correct tier and color for any score in [300, 850]", () => {

@@ -60,7 +60,7 @@ function Merchants() {
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Merchants</h1>
         <p className="text-sm text-foreground/50 max-w-2xl">
           Shops accepting Polaris. Any merchant can register and start splitting checkouts into
-          four — settlement lands in their payout address on schedule.
+          four. Settlement lands in their payout address on schedule.
         </p>
       </header>
 

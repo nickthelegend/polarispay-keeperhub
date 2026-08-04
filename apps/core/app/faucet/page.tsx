@@ -101,7 +101,7 @@ function Faucet() {
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Test tokens</h1>
         <p className="text-sm text-foreground/50">
           {symbol} on Sepolia, for trying the product. You will also need a little Sepolia ETH for
-          gas — the public faucets have that.
+          gas, which the public faucets have.
         </p>
       </header>
 

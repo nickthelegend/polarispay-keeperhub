@@ -384,7 +384,7 @@ function Figure({
                     tone === 'warn' ? 'text-amber-300' : 'text-white/90'
                 }`}
             >
-                {loading ? <Skeleton w="6ch" /> : value ?? '—'}
+                {loading ? <Skeleton w="6ch" /> : value ?? '-'}
             </dd>
         </div>
     );
@@ -405,7 +405,7 @@ function InlineFigure({
         <div className="flex items-baseline gap-2.5">
             <dt className="text-white/40">{label}</dt>
             <dd className={`figure font-mono font-medium ${accent ? 'text-primary' : 'text-white/85'}`}>
-                {loading ? <Skeleton w="5ch" /> : (value ?? '—')}
+                {loading ? <Skeleton w="5ch" /> : (value ?? '-')}
             </dd>
         </div>
     );
