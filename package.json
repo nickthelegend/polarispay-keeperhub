@@ -11,7 +11,7 @@
   "scripts": {
     "build": "pnpm -r --filter \"./packages/**\" build",
     "typecheck": "pnpm -r --filter \"./packages/**\" --filter \"./keeper\" typecheck",
-    "test": "pnpm --filter @polarispay/keeperhub test && pnpm --filter @polarispay/db test && pnpm --filter @polarispay/mcp test && pnpm --filter @polarispay/contracts test",
+    "test": "pnpm --filter @polarispay/keeperhub test && pnpm --filter @polarispay/db test && pnpm --filter @polarispay/mcp test && pnpm --filter @polarispay/underwriting test && pnpm --filter @polarispay/contracts test",
     "contracts:compile": "pnpm --filter @polarispay/contracts compile",
     "contracts:test": "pnpm --filter @polarispay/contracts test",
     "contracts:deploy": "pnpm --filter @polarispay/contracts deploy:sepolia",

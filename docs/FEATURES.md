@@ -11,6 +11,9 @@ Status counts: **50 shipped · 17 wired · 34 planned**
 | # | Feature | Status |
 |---|---|---|
 | 1 | Undercollateralized BNPL loans with equal installments | Shipped |
+| 1b | Chain-history underwriting: wallet age, DeFi tenure, Aave record, liquidation history, sybil clustering | Shipped |
+| 1c | Atomic batch settlement — many merchants, one transaction, indexed memos | Shipped |
+| 1d | MCP server so agents can check credit, pay, subscribe and lock collateral | Shipped |
 | 2 | Merchant paid in full at origination from protocol liquidity | Shipped |
 | 3 | Pull-based collection — one approval at checkout funds every installment | Shipped |
 | 4 | Permissionless `repay` so any keeper can collect, funds only ever move borrower → contract | Shipped |
