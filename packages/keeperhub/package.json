@@ -19,7 +19,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && node --test --experimental-strip-types test/*.test.ts"
+    "test": "npm run build && node --test --experimental-strip-types test/keeperhub.test.ts",
+    "test:live": "npm run build && node --test --experimental-strip-types test/live-api.test.ts",
+    "test:all": "npm run build && node --test --experimental-strip-types test/*.test.ts"
   },
   "keywords": [
     "keeperhub",
