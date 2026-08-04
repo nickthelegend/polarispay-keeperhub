@@ -11,26 +11,11 @@ export async function GET(req: NextRequest) {
 
     const db = await getDb();
 
-    // 1. Ensure "gucci-store" exists in the DB with the client ID/secret we set in the shopping app
-    const gucciClientId = "prod_3b9921c551835a189d4ef0de";
-    const gucciClientSecret = "sk_236fe312b2010fb190026af19d11ce6d5b21b2524c7b1fe9";
-    
-    let gucciApp: any = await db.collection('merchant_apps').findOne({ name: 'gucci-store' });
-    if (!gucciApp) {
-        gucciApp = {
-            user_id: '0xGucciOwnerWallet',
-            wallet_address: '0xGucciOwnerWallet',
-            name: 'gucci-store',
-            category: 'Luxury Fashion',
-            client_id: gucciClientId,
-            client_secret: gucciClientSecret,
-            network: 'sepolia',
-            status: 'active',
-            created_at: new Date(),
-            updated_at: new Date()
-        };
-        await db.collection('merchant_apps').insertOne(gucciApp);
-    }
+    // The demo merchant is no longer auto-seeded here: it committed a live
+    // client_secret to source and created a row under a fake owner that the
+    // ownership filter then had to special-case. Seed demo data with
+    // `pnpm db:seed` instead.
+
 
     // 2. Get User (auto-create if doesn't exist so dashboard loads successfully)
     const user = await db.collection('merchant_users').findOne({ wallet_address: walletAddress });
@@ -42,12 +27,11 @@ export async function GET(req: NextRequest) {
         });
     }
 
-    // 3. Get Apps (Return user's apps OR the gucci-store app)
+    // Return only apps this wallet owns.
     const apps = await db.collection('merchant_apps')
         .find({
             $or: [
-                { user_id: walletAddress },
-                { name: 'gucci-store' }
+                { user_id: walletAddress }
             ]
         })
         .sort({ created_at: -1 })

@@ -13,6 +13,7 @@ import {
   formatReceipt,
   nextDunningStep,
   dunningMessage,
+  partialCollection,
 } from "@polarispay/keeperhub";
 
 import type { LoanBook } from "./loanbook.ts";
@@ -44,6 +45,8 @@ export async function runCollection(opts: {
   dryRun?: boolean;
   notify?: Notifier;
   log?: (line: string) => void;
+  /** Optional: lets the job attempt a partial collection on a shortfall. */
+  availableBalanceRaw?: (borrower: string) => Promise<bigint>;
 }): Promise<JobResult> {
   const now = opts.now ?? new Date();
   const log = opts.log ?? console.log;
@@ -94,6 +97,46 @@ export async function runCollection(opts: {
 
     result.failed++;
     const kind = (receipt.error?.kind ?? "unknown") as KeeperHubErrorKind;
+
+    /*
+     * Before falling through to dunning, try to collect what the borrower
+     * actually has. A shortfall is not a default -- taking 38 of a 50
+     * instalment reduces exposure and leaves less to chase, and the alternative
+     * is taking nothing at all.
+     *
+     * Only on an insufficient-funds failure: any other revert means the
+     * protocol rejected the call, and a smaller amount will be rejected too.
+     */
+    if (kind === "insufficient_funds" && opts.availableBalanceRaw) {
+      const available = await opts.availableBalanceRaw(loan.borrower);
+      const partial = partialCollection({
+        dueRaw: BigInt(installment.amountRaw),
+        availableRaw: available,
+      });
+
+      if (partial.action === "collect-partial") {
+        const partialReceipt = await opts.keeper.collectInstallment({
+          loanId: loan.loanId,
+          installment: installment.index,
+          amountRaw: partial.amountRaw,
+          amountDisplay: `${partial.amountRaw} (partial)`,
+          attempt: attempt + 1,
+        });
+        result.receipts.push(partialReceipt);
+        log(`  -> partial collection: ${formatReceipt(partialReceipt)}`);
+
+        if (partialReceipt.outcome === "succeeded") {
+          // Still short, so the instalment stays open and the ladder still
+          // applies -- but against a smaller remaining balance.
+          await opts.book.recordAttempt(loan.loanId, installment.index, {
+            state: "dunning",
+            attempts: attempt + 1,
+            lastFailureKind: "insufficient_funds",
+          });
+        }
+      }
+    }
+
     const decision = nextDunningStep({ attemptsMade: attempt, failureKind: kind, now });
 
     if (decision.action === "retry") {

@@ -15,7 +15,10 @@ const GET_USER_MORPHO_QUERY = `
 
 // In production, this should be in an environment variable
 // DO NOT USE THIS KEY IN PRODUCTION
-const ATTESTER_PRIVATE_KEY = process.env.ATTESTER_PRIVATE_KEY || "0xdb8cfa2db2a866e6fea3d4388da2278f8ef7367180d5921b96661d946b244c86";
+// A committed fallback key is a signing oracle for anyone who reads the repo:
+// they can mint credit attestations the CreditOracle will accept. There is no
+// safe default here, so the route fails closed when it is unset.
+const ATTESTER_PRIVATE_KEY = process.env.ATTESTER_PRIVATE_KEY;
 
 export async function POST(req: Request) {
     try {
@@ -51,12 +54,12 @@ export async function POST(req: Request) {
         }
 
         // 2. Fetch from Aave (Mocked for now, in prod use Subgraphs)
-        const aaveCollateral = 1200.50; // Mocked
-        const aaveDebt = 300.00; // Mocked
+        const aaveCollateral = 0; // not integrated yet -- must not be invented
+        const aaveDebt = 0;
 
         // 3. Fetch from Compound (Mocked for now)
-        const compoundCollateral = 500.25; // Mocked
-        const compoundDebt = 0; // Mocked
+        const compoundCollateral = 0;
+        const compoundDebt = 0;
 
         // Aggregate
         const totalCollateral = morphoCollateral + aaveCollateral + compoundCollateral;

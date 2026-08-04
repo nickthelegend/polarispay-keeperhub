@@ -13,6 +13,14 @@ export type InstallmentState = "scheduled" | "paid" | "dunning" | "written_off";
 export type LoanStatus = "active" | "repaid" | "liquidated" | "defaulted";
 export type MerchantStatus = "pending" | "active" | "suspended";
 
+/** Mirrors the keeper's Receipt discriminants so the two stay in step. */
+export type ReceiptKind =
+  | "installment_charge"
+  | "liquidation"
+  | "merchant_settlement"
+  | "score_update";
+export type ReceiptOutcome = "succeeded" | "failed" | "skipped";
+
 export type MerchantDoc = {
   _id?: ObjectId;
   merchantId: string;
@@ -42,6 +50,8 @@ export type InstallmentDoc = {
   lastFailureKind?: string;
   paidAt?: Date;
   transactionHash?: string;
+  /** Set once this instalment has been paid out to the merchant. */
+  settledAt?: Date;
 };
 
 export type LoanDoc = {
@@ -66,8 +76,8 @@ export type LoanDoc = {
 export type ReceiptDoc = {
   _id?: ObjectId;
   actionId: string;
-  kind: string;
-  outcome: string;
+  kind: ReceiptKind;
+  outcome: ReceiptOutcome;
   loanId?: string;
   installment?: number;
   merchantId?: string;

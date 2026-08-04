@@ -8,6 +8,15 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {ScoreManager} from "./ScoreManager.sol";
 
+interface ICollateralSeize {
+    function seize(address user, uint256 amount, address to) external returns (uint256);
+}
+
+interface IMerchantChecks {
+    function canOriginate(address merchant, uint256 orderValue) external view returns (bool);
+    function recordSettlement(address merchant, uint256 amount) external;
+}
+
 /**
  * @title PolarisLoanEngine
  * @notice Undercollateralized BNPL. A borrower splits a purchase into equal
@@ -83,6 +92,13 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
 
     uint256 public loanCount;
     uint256 public protocolFeesAccrued;
+    /// Unrecovered value from liquidations. The protocol's own loss ledger.
+    uint256 public badDebt;
+
+    /// Optional. When set, liquidation seizes collateral toward the shortfall.
+    ICollateralSeize public collateralVault;
+    /// Optional. When set, origination enforces merchant activation and caps.
+    IMerchantChecks public merchantRegistry;
 
     event LoanCreated(
         uint256 indexed loanId,
@@ -100,7 +116,15 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
         bool onTime
     );
     event LoanFullyRepaid(uint256 indexed loanId, address indexed borrower);
-    event LoanLiquidated(uint256 indexed loanId, address indexed borrower, uint256 outstanding);
+    event LoanLiquidated(
+        uint256 indexed loanId,
+        address indexed borrower,
+        uint256 outstanding,
+        uint256 recovered
+    );
+    event LiquidityWithdrawn(address indexed to, uint256 amount);
+    event CollateralVaultSet(address indexed vault);
+    event MerchantRegistrySet(address indexed registry);
     event OriginatorSet(address indexed originator, bool allowed);
     event TreasuryChanged(address indexed treasury);
 
@@ -112,6 +136,11 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
     error NotLiquidatable();
     error ExceedsCreditLimit();
     error InvalidGracePeriod();
+    error InsufficientAllowance(uint256 have, uint256 need);
+    error InvalidInterval();
+    error MerchantNotEligible();
+    error ZeroAddress();
+    error InsufficientLiquidity();
 
     modifier onlyOriginator() {
         if (!isOriginator[msg.sender]) revert NotOriginator();
@@ -142,13 +171,40 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
     }
 
     function setTreasury(address _treasury) external onlyOwner {
+        if (_treasury == address(0)) revert ZeroAddress();
         treasury = _treasury;
         emit TreasuryChanged(_treasury);
+    }
+
+    function setCollateralVault(ICollateralSeize vault) external onlyOwner {
+        collateralVault = vault;
+        emit CollateralVaultSet(address(vault));
+    }
+
+    function setMerchantRegistry(IMerchantChecks registry) external onlyOwner {
+        merchantRegistry = registry;
+        emit MerchantRegistrySet(address(registry));
     }
 
     /// @notice Seed protocol liquidity used to pay merchants up front.
     function fund(uint256 amount) external {
         stablecoin.safeTransferFrom(msg.sender, address(this), amount);
+    }
+
+    /**
+     * @notice Withdraw idle liquidity.
+     * @dev `fund` was previously one-way: there was no path out at all, so
+     *      seeded capital was locked in the contract forever. Accrued fees are
+     *      excluded from what is withdrawable, so a withdrawal cannot strand
+     *      the treasury's claim.
+     */
+    function withdrawLiquidity(uint256 amount, address to) external onlyOwner {
+        if (to == address(0)) revert ZeroAddress();
+        uint256 balance = stablecoin.balanceOf(address(this));
+        uint256 free = balance > protocolFeesAccrued ? balance - protocolFeesAccrued : 0;
+        if (amount > free) revert InsufficientLiquidity();
+        stablecoin.safeTransfer(to, amount);
+        emit LiquidityWithdrawn(to, amount);
     }
 
     // -----------------------------------------------------------------
@@ -170,6 +226,18 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
     ) external onlyOriginator nonReentrant returns (uint256 loanId) {
         if (principal == 0) revert ZeroAmount();
         if (installmentCount == 0 || installmentCount > 24) revert InvalidInstallments();
+        // An unvalidated interval let a caller pass 0, which made the loan
+        // interest-free and due in full at origination -- liquidatable one
+        // grace period later, with a schedule that never existed.
+        if (intervalSeconds < 1 hours || intervalSeconds > 365 days) revert InvalidInterval();
+        if (merchant == address(0) || borrower == address(0)) revert ZeroAddress();
+
+        if (
+            address(merchantRegistry) != address(0) &&
+            !merchantRegistry.canOriginate(merchant, principal)
+        ) {
+            revert MerchantNotEligible();
+        }
 
         uint256 term = uint256(installmentCount) * uint256(intervalSeconds);
         uint256 interest = (principal * INTEREST_RATE_BPS * term) / (10_000 * 365 days);
@@ -178,6 +246,12 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
         if (activeDebtOf[borrower] + totalOwed > scoreManager.creditLimitOf(borrower)) {
             revert ExceedsCreditLimit();
         }
+
+        // The whole collection model rests on a standing allowance. Paying the
+        // merchant without one is a guaranteed total loss: every later repay
+        // reverts and liquidation has nothing to pull.
+        uint256 allowed = stablecoin.allowance(borrower, address(this));
+        if (allowed < totalOwed) revert InsufficientAllowance(allowed, totalOwed);
 
         loanId = ++loanCount;
         loans[loanId] = Loan({
@@ -204,15 +278,42 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
     // Collection -- what the keeper calls
     // -----------------------------------------------------------------
 
-    /// @notice Amount due for the next unpaid installment.
+    /**
+     * @notice Cumulative amount that must have been repaid for `k` installments
+     *         to count as complete.
+     * @dev Rounded up, and the schedule and the progress check both read from
+     *      this one function. An earlier version computed the instalment amount
+     *      by rounding down and inferred progress by rounding down again, so a
+     *      full payment landed one unit short of its own threshold and counted
+     *      as zero. One canonical ladder removes that class of bug entirely.
+     */
+    function thresholdFor(uint256 loanId, uint32 k) public view returns (uint256) {
+        Loan storage l = loans[loanId];
+        if (k == 0) return 0;
+        if (k >= l.installmentCount) return uint256(l.totalOwed);
+        uint256 num = uint256(l.totalOwed) * uint256(k);
+        return (num + l.installmentCount - 1) / l.installmentCount;
+    }
+
+    /// @notice Amount due to complete the next unpaid installment.
     function installmentAmount(uint256 loanId) public view returns (uint256) {
         Loan storage l = loans[loanId];
         if (l.borrower == address(0)) revert InvalidLoan();
-        uint256 remaining = uint256(l.totalOwed) - uint256(l.totalRepaid);
-        uint32 left = l.installmentCount - l.installmentsPaid;
-        if (left == 0) return 0;
-        // Last installment absorbs any rounding dust so the loan closes exactly.
-        return left == 1 ? remaining : remaining / left;
+        if (l.installmentsPaid >= l.installmentCount) return 0;
+        uint256 target = thresholdFor(loanId, l.installmentsPaid + 1);
+        uint256 repaid = uint256(l.totalRepaid);
+        return target > repaid ? target - repaid : 0;
+    }
+
+    /// @notice How many installments the money received actually covers.
+    function installmentsEarned(uint256 loanId) public view returns (uint32) {
+        Loan storage l = loans[loanId];
+        uint32 k = 0;
+        // Bounded by the 24-installment cap enforced at origination.
+        while (k < l.installmentCount && uint256(l.totalRepaid) >= thresholdFor(loanId, k + 1)) {
+            k++;
+        }
+        return k;
     }
 
     /// @notice When installment `index` (0-based) becomes collectable.
@@ -239,31 +340,84 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
         if (l.borrower == address(0)) revert InvalidLoan();
         if (l.status != LoanStatus.Active) revert LoanNotActive();
         if (amount == 0) revert ZeroAmount();
+        if (l.installmentsPaid >= l.installmentCount) revert LoanNotActive();
 
         uint256 remaining = uint256(l.totalOwed) - uint256(l.totalRepaid);
         if (amount > remaining) amount = remaining;
 
+        // Measure what the token actually delivered rather than trusting the
+        // requested amount. A fee-on-transfer stablecoin -- USDC supports the
+        // mechanism and merely has it disabled -- would otherwise over-credit
+        // the borrower for money the contract never received.
+        uint256 balanceBefore = stablecoin.balanceOf(address(this));
         stablecoin.safeTransferFrom(l.borrower, address(this), amount);
+        amount = stablecoin.balanceOf(address(this)) - balanceBefore;
+        if (amount == 0) revert ZeroAmount();
 
         bool onTime = block.timestamp <=
             installmentDueAt(loanId, l.installmentsPaid) + gracePeriod;
 
         l.totalRepaid += uint128(amount);
-        l.installmentsPaid += 1;
         activeDebtOf[l.borrower] -= amount;
 
-        uint256 interestPortion = (amount * INTEREST_RATE_BPS) / 10_000;
-        uint256 fee = (interestPortion * PROTOCOL_FEE_BPS) / 10_000;
-        if (fee > 0) {
-            protocolFeesAccrued += fee;
+        /*
+         * Derive instalments-paid from money actually received, never by
+         * incrementing per call.
+         *
+         * Incrementing was exploitable: a borrower could call repay() with one
+         * base unit, four times, and the loan would show 4/4 collected while
+         * ~200 was still owed -- and, because checkLiquidatable() returns false
+         * once installmentsPaid reaches installmentCount, the loan would be
+         * permanently un-liquidatable. Dust bought immunity.
+         *
+         * The proportion is exact for an equal schedule and monotonic in
+         * totalRepaid, so a partial payment moves the borrower toward the next
+         * instalment without ever completing one it did not cover.
+         */
+        // 0-based index of the instalment this payment goes toward, captured
+        // before the counter moves. Using `installmentsPaid - 1` after the fact
+        // underflows when a partial payment completes nothing.
+        uint32 targetIndex = l.installmentsPaid;
+
+        // Progress is read off the same canonical ladder the schedule is built
+        // from, so a payment that meets its threshold always counts and one
+        // that does not never does.
+        uint32 earned = installmentsEarned(loanId);
+        bool completedOne = earned > l.installmentsPaid;
+        l.installmentsPaid = earned;
+
+        /*
+         * Accrue the protocol's share of *actual* interest, proportionally.
+         *
+         * The previous formula treated 10% of every repayment as interest and
+         * took 20% of that -- roughly 2% of the whole loan. Real interest is
+         * annualised and pro-rated over the term, so on any plan shorter than
+         * about 75 days the fee exceeded every penny of interest earned and the
+         * difference came out of merchant-payout liquidity. A 200 loan over 40
+         * days repaid perfectly on time still lost the pool money.
+         */
+        uint256 totalInterest = uint256(l.totalOwed) - uint256(l.principal);
+        if (totalInterest > 0) {
+            uint256 feeOnThisPayment =
+                (amount * totalInterest * PROTOCOL_FEE_BPS) / (uint256(l.totalOwed) * 10_000);
+            if (feeOnThisPayment > 0) {
+                protocolFeesAccrued += feeOnThisPayment;
+            }
         }
 
-        emit InstallmentPaid(loanId, l.borrower, l.installmentsPaid, amount, onTime);
+        // Index is 0-based to match installmentDueAt, so an indexer can join
+        // the event to the schedule without an off-by-one.
+        emit InstallmentPaid(loanId, l.borrower, targetIndex, amount, onTime);
 
-        if (onTime) {
-            scoreManager.recordOnTimePayment(l.borrower);
-        } else {
-            scoreManager.recordLatePayment(l.borrower);
+        // Score only moves when an instalment actually completed. A partial
+        // payment is progress, not a payment event, and scoring it would let a
+        // borrower farm their score with dust.
+        if (completedOne) {
+            if (onTime) {
+                scoreManager.recordOnTimePayment(l.borrower);
+            } else {
+                scoreManager.recordLatePayment(l.borrower);
+            }
         }
 
         if (l.totalRepaid >= l.totalOwed) {
@@ -289,7 +443,22 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
         return block.timestamp > installmentDueAt(loanId, l.installmentsPaid) + gracePeriod;
     }
 
-    /// @notice The action half. Reverts unless the condition genuinely holds.
+    /**
+     * @notice The action half. Reverts unless the condition genuinely holds.
+     *
+     * @dev This used to move zero tokens. It marked the loan liquidated, freed
+     *      `activeDebtOf`, dinged the score and stopped -- which made it
+     *      *profitable* for the defaulter, who could call it on themselves to
+     *      have the debt written off and their credit line released, then
+     *      borrow again against the 200-unit score floor. That loop was
+     *      infinite and cost the pool the full principal every round.
+     *
+     *      Now it recovers what it can, in order:
+     *        1. whatever the borrower's standing allowance still permits
+     *        2. seized collateral, if a vault is configured
+     *      and books the unrecovered remainder as bad debt so the protocol has
+     *      an on-chain measure of its own losses.
+     */
     function liquidate(uint256 loanId) external nonReentrant {
         if (!checkLiquidatable(loanId)) revert NotLiquidatable();
 
@@ -299,8 +468,40 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
         l.status = LoanStatus.Liquidated;
         activeDebtOf[l.borrower] -= outstanding;
 
+        uint256 recovered = _recoverFromAllowance(l.borrower, outstanding);
+
+        if (address(collateralVault) != address(0) && recovered < outstanding) {
+            recovered += collateralVault.seize(
+                l.borrower,
+                outstanding - recovered,
+                address(this)
+            );
+        }
+
+        l.totalRepaid += uint128(recovered);
+        if (recovered < outstanding) {
+            badDebt += outstanding - recovered;
+        }
+
         scoreManager.recordLiquidation(l.borrower);
-        emit LoanLiquidated(loanId, l.borrower, outstanding);
+        emit LoanLiquidated(loanId, l.borrower, outstanding, recovered);
+    }
+
+    /// Pull whatever the borrower's remaining allowance and balance permit.
+    function _recoverFromAllowance(address borrower, uint256 want)
+        private
+        returns (uint256)
+    {
+        uint256 allowed = stablecoin.allowance(borrower, address(this));
+        uint256 held = stablecoin.balanceOf(borrower);
+        uint256 take = want;
+        if (take > allowed) take = allowed;
+        if (take > held) take = held;
+        if (take == 0) return 0;
+
+        uint256 before = stablecoin.balanceOf(address(this));
+        stablecoin.safeTransferFrom(borrower, address(this), take);
+        return stablecoin.balanceOf(address(this)) - before;
     }
 
     // -----------------------------------------------------------------
@@ -316,7 +517,8 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
         return uint256(l.totalOwed) - uint256(l.totalRepaid);
     }
 
-    function sweepFees() external {
+    function sweepFees() external onlyOwner {
+        if (treasury == address(0)) revert ZeroAddress();
         uint256 amount = protocolFeesAccrued;
         protocolFeesAccrued = 0;
         if (amount > 0) {

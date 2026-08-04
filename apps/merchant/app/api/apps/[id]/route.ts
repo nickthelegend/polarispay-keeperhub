@@ -10,12 +10,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const db = await getDb();
 
-    // Verify ownership and get app (Allow anyone to view gucci-store)
+    // Verify ownership. An app carries a client_secret, so it is owner-only.
     const app = await db.collection('merchant_apps').findOne({ 
         _id: new ObjectId(id),
         $or: [
-            { user_id: walletAddress },
-            { name: 'gucci-store' }
+            { user_id: walletAddress }
         ]
     });
 
@@ -35,13 +34,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const db = await getDb();
 
-    // Update with ownership verification (Allow updates if owner or if it's gucci-store)
+    // Update, owner-only.
     const result = await db.collection('merchant_apps').findOneAndUpdate(
         { 
             _id: new ObjectId(id),
             $or: [
-                { user_id: walletAddress },
-                { name: 'gucci-store' }
+                { user_id: walletAddress }
             ]
         },
         { $set: { ...body, updated_at: new Date() } },

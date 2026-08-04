@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
@@ -18,7 +19,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const body = await req.json();
     const { url, events } = body;
 
-    const secret = `whsec_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+    // Math.random() is not a CSPRNG; an HMAC secret drawn from it is guessable.
+    const secret = `whsec_${randomBytes(24).toString('base64url')}`;
 
     try {
         const db = await getDb();

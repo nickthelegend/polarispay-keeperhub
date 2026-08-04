@@ -76,12 +76,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     const merchant = await merchants.findOne({
       apiKeyHash: createHash("sha256").update(apiKey).digest("hex"),
     });
-    // Fall back to the demo merchant so a fresh clone can transact before any
-    // key has been issued; a configured deployment will always match above.
-    const resolved = merchant ?? (await merchants.findOne({ merchantId: "merch_demo_polaris" }));
-    if (!resolved) {
-      return NextResponse.json({ error: "Unknown merchant" }, { status: 401 });
+    // No fallback. This previously dropped to the seeded demo merchant when the
+    // key did not match, which made the 401 below unreachable and let any
+    // caller originate a real on-chain loan -- paying out protocol liquidity --
+    // with an invalid API key. Convenience is not worth an open mint.
+    if (!merchant) {
+      return NextResponse.json({ error: "Unknown or invalid API key" }, { status: 401 });
     }
+    const resolved = merchant;
     if (resolved.status !== "active") {
       return NextResponse.json({ error: "Merchant is not active" }, { status: 403 });
     }

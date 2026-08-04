@@ -17,7 +17,15 @@ import {
   PolarisKeeper,
   isKeeperHubError,
 } from "@polarispay/keeperhub";
-import { closeDb, MongoLoanBook, MongoReceiptStore, ping } from "@polarispay/db";
+import {
+  closeDb,
+  deliverWebhook,
+  markSettled,
+  MongoLoanBook,
+  MongoReceiptStore,
+  pendingSettlements,
+  ping,
+} from "@polarispay/db";
 
 import { loadConfig, sponsorshipNote } from "./config.ts";
 import { FileLoanBook } from "./loanbook.ts";
@@ -48,7 +56,7 @@ function storage(): {
 } {
   if (process.env.MONGODB_URI) {
     return {
-      book: new MongoLoanBook() as unknown as LoanBook,
+      book: new MongoLoanBook(),
       receipts: new MongoReceiptStore(),
       backend: "mongodb",
     };
@@ -127,10 +135,36 @@ async function liquidate(): Promise<JobResult> {
 }
 
 async function settle(): Promise<JobResult> {
-  const { keeper, config } = build();
-  // Settlement queue lives in the merchant app; nothing pending is the normal
-  // state for a fresh checkout, so an empty run is a success not an error.
-  return await runSettlement({ keeper, pending: [], dryRun: config.dryRun });
+  const { keeper, config, backend } = build();
+
+  // This used to be hardcoded to `[]`, which meant settleMerchant had never
+  // executed and merchants were never actually paid out. The queue is derived
+  // from instalments already collected and not yet settled.
+  const pending =
+    backend === "mongodb" ? await pendingSettlements({ chainId: config.chainId }) : [];
+
+  if (pending.length === 0) {
+    console.log("nothing pending to settle");
+  }
+
+  const result = await runSettlement({ keeper, pending, dryRun: config.dryRun });
+
+  if (!config.dryRun) {
+    for (const receipt of result.receipts) {
+      if (receipt.outcome !== "succeeded") continue;
+      const settlement = pending.find((p) => receipt.actionId.includes(p.merchantId));
+      if (!settlement) continue;
+
+      await markSettled(settlement, receipt.execution?.transactionHash);
+      await deliverWebhook(settlement.merchantId, "settlement.paid", {
+        amount: settlement.amountDisplay,
+        orderIds: settlement.orderId,
+        transactionHash: receipt.execution?.transactionHash,
+      });
+    }
+  }
+
+  return result;
 }
 
 async function loop(): Promise<void> {

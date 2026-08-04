@@ -6,7 +6,12 @@
  */
 
 import { collections } from "./client.js";
-import type { InstallmentDoc, LoanDoc } from "./schema.js";
+import type {
+  InstallmentDoc,
+  InstallmentState,
+  LoanDoc,
+  ReceiptDoc,
+} from "./schema.js";
 
 export type BookLoan = {
   loanId: string;
@@ -18,7 +23,9 @@ export type BookLoan = {
     dueAt: string;
     amountRaw: string;
     amountDisplay: string;
-    state: string;
+    // The union, not a bare string: the keeper branches on these values, and a
+    // widened type here is what forced a cast at the keeper boundary.
+    state: InstallmentState;
     attempts: number;
     nextAttemptAt?: string;
     lastFailureKind?: string;
@@ -92,7 +99,7 @@ export class MongoLoanBook {
     loanId: string,
     index: number,
     patch: Partial<{
-      state: string;
+      state: InstallmentState;
       attempts: number;
       nextAttemptAt?: string;
       lastFailureKind?: string;
@@ -137,6 +144,12 @@ export class MongoLoanBook {
   }
 }
 
+/** A receipt as the keeper produces it: dates as ISO strings. */
+export type StoredReceipt = Omit<ReceiptDoc, "_id" | "createdAt" | "completedAt"> & {
+  createdAt: string;
+  completedAt?: string;
+};
+
 export class MongoReceiptStore {
   async put(receipt: Record<string, unknown>): Promise<void> {
     const { receipts } = await collections();
@@ -150,12 +163,30 @@ export class MongoReceiptStore {
     );
   }
 
-  async list(filter: { loanId?: string; kind?: string } = {}): Promise<unknown[]> {
+  /**
+   * Return receipts in the same shape the keeper writes them.
+   *
+   * Mongo stores `createdAt`/`completedAt` as Date; the keeper's Receipt type
+   * carries ISO strings. Converting here rather than at the call site is what
+   * lets MongoReceiptStore genuinely satisfy ReceiptStore -- previously this
+   * returned `unknown[]` and the keeper papered over the gap with a cast,
+   * which disabled type safety at exactly the boundary where a shape mismatch
+   * would corrupt reconciliation.
+   */
+  async list(
+    filter: { loanId?: string; kind?: string } = {}
+  ): Promise<StoredReceipt[]> {
     const { receipts } = await collections();
     const query: Record<string, unknown> = {};
     if (filter.loanId) query.loanId = filter.loanId;
     if (filter.kind) query.kind = filter.kind;
-    return await receipts.find(query).sort({ createdAt: -1 }).limit(500).toArray();
+
+    const docs = await receipts.find(query).sort({ createdAt: -1 }).limit(500).toArray();
+    return docs.map(({ _id, createdAt, completedAt, ...rest }) => ({
+      ...rest,
+      createdAt: createdAt.toISOString(),
+      completedAt: completedAt?.toISOString(),
+    })) as StoredReceipt[];
   }
 }
 

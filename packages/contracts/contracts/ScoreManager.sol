@@ -3,6 +3,10 @@ pragma solidity ^0.8.24;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
+interface ICollateralBoost {
+    function creditBoostOf(address user) external view returns (uint256);
+}
+
 /**
  * @title ScoreManager
  * @notice FICO-style credit scores (300-850) driven by on-chain repayment
@@ -37,8 +41,12 @@ contract ScoreManager is Ownable {
     mapping(address => Profile) private _profiles;
     mapping(address => bool) public isWriter;
 
+    /// Optional. Unset means the protocol runs as pure credit, no collateral.
+    ICollateralBoost public collateralVault;
+
     event ScoreChanged(address indexed user, uint16 oldScore, uint16 newScore, string reason);
     event WriterSet(address indexed writer, bool allowed);
+    event CollateralVaultSet(address indexed vault);
 
     error NotWriter();
 
@@ -52,6 +60,11 @@ contract ScoreManager is Ownable {
     function setWriter(address writer, bool allowed) external onlyOwner {
         isWriter[writer] = allowed;
         emit WriterSet(writer, allowed);
+    }
+
+    function setCollateralVault(ICollateralBoost vault) external onlyOwner {
+        collateralVault = vault;
+        emit CollateralVaultSet(address(vault));
     }
 
     /// @notice Score for a user, seeding a fresh profile at STARTING_SCORE.
@@ -69,18 +82,43 @@ contract ScoreManager is Ownable {
     }
 
     /**
-     * @notice Credit limit implied by a score, in stablecoin base units.
+     * @notice Credit limit from score alone, in stablecoin base units.
      * @dev Piecewise rather than linear so the jumps are legible to a user
      *      ("get to 700 and your limit doubles") instead of a smooth curve
      *      nobody can reason about.
      */
-    function creditLimitOf(address user) external view returns (uint256) {
+    function baseLimitOf(address user) public view returns (uint256) {
         uint16 s = scoreOf(user);
         if (s >= 800) return 5_000e6;
         if (s >= 740) return 2_500e6;
         if (s >= 670) return 1_000e6;
         if (s >= 580) return 500e6;
         return 200e6;
+    }
+
+    /**
+     * @notice The limit a borrower can actually draw: score plus any boost
+     *         earned by locking collateral.
+     *
+     * @dev This is the single number the LoanEngine, the checkout SDK and both
+     *      UIs read, so a borrower is never shown one limit and refused at
+     *      another. The vault is optional -- with none configured this is
+     *      exactly the score-derived limit, which is the pure credit product.
+     *
+     *      A failing vault call must not brick origination, so the boost is
+     *      read defensively: an unreachable or misbehaving vault degrades to
+     *      "no boost" rather than reverting every loan in the protocol.
+     */
+    function creditLimitOf(address user) external view returns (uint256) {
+        uint256 base = baseLimitOf(user);
+        if (address(collateralVault) == address(0)) {
+            return base;
+        }
+        try collateralVault.creditBoostOf(user) returns (uint256 boost) {
+            return base + boost;
+        } catch {
+            return base;
+        }
     }
 
     function recordOnTimePayment(address user) external onlyWriter {

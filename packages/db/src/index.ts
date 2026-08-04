@@ -14,7 +14,7 @@ export {
   MongoReceiptStore,
   recordEvent,
 } from "./loanbook.js";
-export type { BookLoan } from "./loanbook.js";
+export type { BookLoan, StoredReceipt } from "./loanbook.js";
 
 export { COLLECTIONS, INDEXES } from "./schema.js";
 export type {
@@ -26,6 +26,8 @@ export type {
   MerchantDoc,
   MerchantStatus,
   ReceiptDoc,
+  ReceiptKind,
+  ReceiptOutcome,
 } from "./schema.js";
 
 export {
@@ -53,3 +55,6 @@ export type { Drift, ReconcileReport } from './reconcile.js';
 
 export { indexEvents, lastIndexedBlock } from './indexer.js';
 export type { IndexResult } from './indexer.js';
+
+export { markSettled, pendingSettlements } from './settlements.js';
+export type { PendingSettlement } from './settlements.js';

@@ -2,6 +2,27 @@ import { NextResponse } from "next/server"
 import type { VerificationProof, VerificationProvider } from "@/lib/reclaim-types"
 import { addVerification } from "@/lib/verification-store"
 
+/**
+ * Verify a Reclaim proof's signatures.
+ *
+ * Requires RECLAIM_APP_SECRET. Unset means we cannot verify, and an
+ * unverifiable proof must not be treated as a valid one.
+ */
+async function verifyReclaimProof(
+  proof: VerificationProof
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (!process.env.RECLAIM_APP_SECRET) {
+    return { ok: false, reason: "proof verification is not configured (RECLAIM_APP_SECRET unset)" }
+  }
+  try {
+    const { verifyProof } = await import("@reclaimprotocol/js-sdk")
+    const ok = await verifyProof(proof as never)
+    return ok ? { ok: true } : { ok: false, reason: "signature verification failed" }
+  } catch (err) {
+    return { ok: false, reason: (err as Error).message }
+  }
+}
+
 // Reward amounts in ALGO for each provider
 const ALGO_REWARDS = {
   github: 10,
@@ -16,6 +37,27 @@ export async function POST(req: Request) {
 
     if (!proofs || !Array.isArray(proofs) || proofs.length === 0) {
       return NextResponse.json({ error: "No proofs provided" }, { status: 400 })
+    }
+
+    /*
+     * Verify the proof before trusting anything inside it.
+     *
+     * This route previously read `proofs[0].claimData.provider`, string-matched
+     * it, and granted an ALGO reward plus a credit-limit increase -- with no
+     * signature check at all. Anyone could POST
+     * `{proofs:[{claimData:{provider:"gmail"}}]}` and mint themselves credit.
+     *
+     * Reclaim proofs are verified with its own SDK; without the verifier
+     * configured there is no way to distinguish a real proof from a forged
+     * one, so the route fails closed rather than granting on an unverified
+     * claim.
+     */
+    const verified = await verifyReclaimProof(proofs[0])
+    if (!verified.ok) {
+      return NextResponse.json(
+        { error: `Proof rejected: ${verified.reason}` },
+        { status: 401 }
+      )
     }
 
     // Extract provider from proof
@@ -35,8 +77,12 @@ export async function POST(req: Request) {
 
     const algoReward = ALGO_REWARDS[provider] || 0
 
-    // In production, get wallet address from authenticated session
-    const walletAddress = req.headers.get("x-wallet-address") || "mock-wallet-address"
+    // A shared default bucket meant every unauthenticated caller accrued into
+    // the same account. The address is required.
+    const walletAddress = req.headers.get("x-wallet-address")
+    if (!walletAddress) {
+      return NextResponse.json({ error: "Missing x-wallet-address" }, { status: 401 })
+    }
 
     console.log("[v0] Proof verified successfully:", {
       provider,
@@ -47,11 +93,6 @@ export async function POST(req: Request) {
 
     // Store verification and update limits
     const userData = addVerification(walletAddress, provider, algoReward)
-
-    // In a real implementation, you would also:
-    // 1. Verify the proof signatures using Reclaim SDK
-    // 2. Store the verification in your database
-    // 3. Transfer ALGO rewards to the user's wallet via smart contract
 
     return NextResponse.json({
       success: true,
