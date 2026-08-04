@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   }
 
   const db = await getDb();
-  const app = await db.collection("apps").findOne({ clientId, clientSecret });
+  const app = await db.collection("merchant_apps").findOne({ clientId, clientSecret });
 
   if (!app) {
     return NextResponse.json({ error: "Invalid API Credentials" }, { status: 403 });

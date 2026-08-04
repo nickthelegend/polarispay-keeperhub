@@ -67,8 +67,12 @@ export async function GET(req: NextRequest) {
     }
 
     const TOKEN_NAMES: Record<string, string> = { USDC: "USD Coin", WETH: "Wrapped Ether", BNB: "BNB", USDT: "Tether", ETH: "Ether" };
-    const SUPPLY_APY: Record<string, string> = { USDC: "2.1%", WETH: "3.4%", BNB: "5.1%", USDT: "1.8%" };
-    const BORROW_APY: Record<string, string> = { USDC: "4.8%", WETH: "5.2%", BNB: "7.5%", USDT: "4.1%" };
+    /*
+     * APY is not published on chain by these pools, and inventing a rate that
+     * a user might act on is worse than admitting we do not have it. `apy` is
+     * null until a real rate source is wired; the UI renders that as "--"
+     * rather than a plausible-looking number.
+     */
 
     const positions = Object.values(agg)
       .filter(p => p.totalAmount > 0)
@@ -78,7 +82,7 @@ export async function GET(req: NextRequest) {
         name: TOKEN_NAMES[p.symbol] || p.symbol,
         amount: p.totalAmount.toFixed(2),
         value: `$${p.totalAmount.toFixed(2)}`,
-        apy: p.type === "SUPPLY" ? (SUPPLY_APY[p.symbol] || "2.0%") : (BORROW_APY[p.symbol] || "4.0%"),
+        apy: null,
         txHash: p.latestTx,
       }));
 

@@ -32,7 +32,9 @@ type TxLog = {
 }
 
 function randomHex(len = 64) {
-  return "0x" + Array.from({ length: len }, () => Math.floor(Math.random() * 16).toString(16)).join("")
+  // Fabricating a transaction hash that renders next to real ones is how a
+  // user ends up trusting a link that leads nowhere.
+  throw new Error("Transaction hashes must come from a real receipt, not be generated")
 }
 
 export function LendingActionModal({

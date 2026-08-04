@@ -74,7 +74,7 @@ export const PayWithPolaris: React.FC<PayWithPolarisProps> = ({
                                 {
                                     chainId: '0x' + chainId.toString(16),
                                     chainName: 'Ethereum Sepolia',
-                                    rpcUrls: ['https://eth-sepolia.g.alchemy.com/v2/3qRB0TMQQv3hyKgav_6lF'],
+                                    rpcUrls: [process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com'],
                                     nativeCurrency: {
                                         name: 'Ethereum',
                                         symbol: 'ETH',
@@ -108,7 +108,7 @@ export const PayWithPolaris: React.FC<PayWithPolarisProps> = ({
                 "function allowance(address owner, address spender) view returns (uint256)"
             ], signer);
 
-            const amountWei = ethers.parseUnits(amount.toString(), 18);
+            const amountWei = ethers.parseUnits(amount.toString(), await token.decimals());
 
             // Check Allowance
             setStatus('Checking allowance...');

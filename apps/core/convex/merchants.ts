@@ -134,8 +134,14 @@ export const createApp = mutation({
         category: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const clientId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        const clientSecret = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        // Math.random() is not a CSPRNG: credentials drawn from it are
+        // predictable from a couple of observed values.
+        const rand = (n: number) =>
+            Array.from(crypto.getRandomValues(new Uint8Array(n)))
+                .map((b) => b.toString(16).padStart(2, "0"))
+                .join("");
+        const clientId = `prod_${rand(12)}`;
+        const clientSecret = `sk_${rand(24)}`;
 
         const appId = await ctx.db.insert("apps", {
             userId: args.userId,

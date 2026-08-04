@@ -2,8 +2,21 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import crypto from 'crypto';
 
+/**
+ * Demo seeding. Gated behind an explicit flag.
+ *
+ * This was an unauthenticated GET that minted a merchant app with a real
+ * client_secret. Anyone who hit the URL got working credentials.
+ */
 export async function GET() {
-    try {
+    if (process.env.ALLOW_DEMO_SEED !== "true") {
+    return NextResponse.json(
+      { error: "Demo seeding is disabled. Set ALLOW_DEMO_SEED=true to enable it." },
+      { status: 403 }
+    );
+  }
+
+  try {
         const wallet = "0xDemoMerchant" + crypto.randomBytes(4).toString('hex');
         const db = await getDb();
 

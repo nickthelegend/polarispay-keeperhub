@@ -6,7 +6,11 @@ export async function GET() {
     const db = await getDb();
     const merchants = await db.collection("merchants").find({}).toArray();
     return NextResponse.json(merchants);
-  } catch {
-    return NextResponse.json([]);
+  } catch (err) {
+    // Returning [] made a database failure indistinguishable from "no rows".
+    return NextResponse.json(
+      { error: (err as Error).message ?? "Query failed" },
+      { status: 500 }
+    );
   }
 }

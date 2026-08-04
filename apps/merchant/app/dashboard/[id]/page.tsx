@@ -116,7 +116,7 @@ export default function AppDetails() {
     const fetchBalance = async () => {
         if (!app?.escrow_contract) return;
         try {
-            const provider = new ethers.JsonRpcProvider('https://eth-sepolia.g.alchemy.com/v2/3qRB0TMQQv3hyKgav_6lF');
+            const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com");
             const abi = ["function balanceOf(address) view returns (uint256)"];
             const usdc = new ethers.Contract(DEFAULT_STABLECOIN, abi, provider);
             const bal = await usdc.balanceOf(app.escrow_contract);
@@ -130,7 +130,7 @@ export default function AppDetails() {
         if (!app?.escrow_contract) return;
         setRefreshingLogs(true);
         try {
-            const provider = new ethers.JsonRpcProvider('https://eth-sepolia.g.alchemy.com/v2/3qRB0TMQQv3hyKgav_6lF');
+            const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com");
             const contract = new ethers.Contract(app.escrow_contract, PolarisMerchantEscrow.abi, provider);
 
             const filter = contract.filters.PaymentSettled();

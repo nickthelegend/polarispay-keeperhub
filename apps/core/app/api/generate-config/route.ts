@@ -4,7 +4,7 @@ import { ReclaimProofRequest } from "@reclaimprotocol/js-sdk"
 // Provider IDs for different verification types
 // These should be obtained from Reclaim Protocol dashboard
 const PROVIDER_IDS = {
-  github: process.env.RECLAIM_GITHUB_PROVIDER_ID || "github-provider-id",
+  github: process.env.RECLAIM_GITHUB_PROVIDER_ID,
   gmail: process.env.RECLAIM_GMAIL_PROVIDER_ID || "gmail-provider-id",
   linkedin: process.env.RECLAIM_LINKEDIN_PROVIDER_ID || "linkedin-provider-id",
 }
@@ -18,8 +18,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid provider specified" }, { status: 400 })
     }
 
-    const APP_ID = process.env.RECLAIM_APP_ID || "your-app-id"
-    const APP_SECRET = process.env.RECLAIM_APP_SECRET || "your-app-secret"
+    const APP_ID = process.env.RECLAIM_APP_ID
+    const APP_SECRET = process.env.RECLAIM_APP_SECRET
+
+    // Initialising with placeholder credentials produced a config object that
+    // looked valid and failed later, somewhere less obvious.
+    if (!(APP_ID && APP_SECRET)) {
+      return NextResponse.json(
+        { error: "Reclaim is not configured (RECLAIM_APP_ID / RECLAIM_APP_SECRET)." },
+        { status: 503 }
+      )
+    }
     const PROVIDER_ID = PROVIDER_IDS[provider]
 
     // Initialize Reclaim Proof Request

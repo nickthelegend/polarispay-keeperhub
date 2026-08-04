@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(deposits.map((d) => ({
       id: d._id.toString(),
       user_address: d.userAddress,
-      token_address: d.tokenAddress || "0x...",
+      token_address: d.tokenAddress ?? null,
       amount: d.amount?.toString() ?? "0",
       source_tx_hash: d.txHash,
       hub_tx_hash: d.hubTxHash,
@@ -27,7 +27,11 @@ export async function GET(req: NextRequest) {
       status: mapStatus(d.status),
       created_at: d.createdAt?.toISOString() ?? new Date().toISOString(),
     })));
-  } catch (e) {
-    return NextResponse.json([]);
+  } catch (err) {
+    // Returning [] made a database failure indistinguishable from "no rows".
+    return NextResponse.json(
+      { error: (err as Error).message ?? "Query failed" },
+      { status: 500 }
+    );
   }
 }

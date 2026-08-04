@@ -56,7 +56,9 @@ export class PayEaseContracts {
   // Get user credit limit
   static async getUserLimit(userAddress: string): Promise<number> {
     console.log('[Mock] Getting limit for user:', userAddress);
-    return 300; // Mocked limit
+    // Returning a plausible number here made an unimplemented integration
+    // look live. Callers must handle null.
+    return null;
   }
 
   // Add to piggy bank

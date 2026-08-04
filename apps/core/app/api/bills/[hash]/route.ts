@@ -19,7 +19,7 @@ export async function GET(
     const bill = await db.collection("bills").findOne({ hash });
 
     if (bill) {
-      const app = bill.appId ? await db.collection("apps").findOne({ _id: bill.appId }) : null;
+      const app = bill.appId ? await db.collection("merchant_apps").findOne({ _id: bill.appId }) : null;
       return NextResponse.json({
         ...bill,
         merchant: app ? {

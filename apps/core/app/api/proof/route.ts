@@ -60,13 +60,13 @@ export async function GET(request: NextRequest) {
   if (chainKey === 11155111) chainKey = 1;
 
   if (chainKey === 1337) {
-    return NextResponse.json({
-      chainKey,
-      headerNumber: 1,
-      merkleProof: { root: "0x" + "0".repeat(64), siblings: [] },
-      continuityProof: { lowerEndpointDigest: "0x" + "0".repeat(64), roots: ["0x" + "0".repeat(64)] },
-      txBytes: "0x",
-    });
+    // Previously returned an all-zero merkle root, empty siblings and
+    // txBytes "0x" shaped like a valid proof. A verifier would either reject
+    // it or, worse, accept a proof of nothing.
+    return NextResponse.json(
+      { error: "Local chain 1337 has no proof source configured." },
+      { status: 501 }
+    );
   }
 
   try {
