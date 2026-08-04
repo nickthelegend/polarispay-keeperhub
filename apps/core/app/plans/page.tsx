@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import useSWR from "swr"
 import Link from "next/link"
+import { useAccount } from "wagmi"
 
 /**
  * The borrower's side of the ledger.
@@ -54,10 +55,24 @@ const fetcher = (url: string) =>
     return r.json()
   })
 
+/**
+ * Demo borrower shown when no wallet is connected. This is the address that
+ * actually holds plans on Sepolia, so the page is viewable — and recordable —
+ * without a wallet. Read-only either way: nothing here is actionable.
+ */
+const DEMO_BORROWER =
+  process.env.NEXT_PUBLIC_DEMO_BORROWER ??
+  "0x7a2e11b3ecebab8ea46966edadd4092583809b67"
+
 export default function PlansPage() {
-  const { data, error, isLoading } = useSWR<CreditProfile>("/api/credit/me", fetcher, {
-    refreshInterval: 30_000,
-  })
+  const { address, isConnected } = useAccount()
+  const borrower = (isConnected && address ? address : DEMO_BORROWER).toLowerCase()
+
+  const { data, error, isLoading } = useSWR<CreditProfile>(
+    `/api/credit/me?address=${borrower}`,
+    fetcher,
+    { refreshInterval: 30_000 }
+  )
   const [expanded, setExpanded] = useState<string | null>(null)
 
   const utilisation = useMemo(() => {

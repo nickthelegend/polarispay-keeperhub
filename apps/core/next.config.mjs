@@ -3,6 +3,9 @@ const require = createRequire(import.meta.url);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // @polarispay/db is a workspace package compiled from TS source; Next has to
+  // treat it as first-party or the data routes cannot resolve it.
+  transpilePackages: ["@polarispay/db"],
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -69,6 +72,12 @@ const nextConfig = {
       ...config.resolve.alias,
       '@react-native-async-storage/async-storage': false,
       '@farcaster/mini-app-solana': false,
+      // @wagmi/core's Tempo connector and the mongodb driver both guard these
+      // behind optional dynamic imports and handle the failure themselves, but
+      // webpack still tries to resolve them at build time and fails the whole
+      // compile. Aliasing to false lets the runtime guards do their job.
+      accounts: false,
+      aws4: false,
     };
 
     return config;
