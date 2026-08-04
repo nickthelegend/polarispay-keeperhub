@@ -1,8 +1,8 @@
 # PolarisPay × KeeperHub
 
-**Undercollateralized BNPL for crypto — with KeeperHub as the execution and reliability layer.**
+**A payments layer with credit built in — and KeeperHub as the execution layer underneath it.**
 
-Polaris issues credit. KeeperHub makes sure the money actually moves: installments get collected on the day they are due, defaulted loans get liquidated the moment they qualify, and merchants get paid. Every one of those is a transaction that has to land, exactly once, or somebody loses money.
+Three ways to pay: in full, on a subscription, or split into instalments against an undercollateralized credit line. Polaris decides who gets credit; KeeperHub makes sure the money actually moves — instalments collected on the day they fall due, defaulted loans liquidated the moment they qualify, merchants paid. Every one is a transaction that has to land, exactly once, or somebody loses money.
 
 Submission for the **KeeperHub Agents Onchain** hackathon.
 
@@ -13,7 +13,10 @@ The keeper collects real instalments through KeeperHub's direct-execution API �
 | | |
 |---|---|
 | Collection through KeeperHub | [`0x38e2126e…`](https://sepolia.etherscan.io/tx/0x38e2126efdff6ef5d0ab561abfd39592fd3081fcd365800c389ef1473000615b) — the instalment that closed loan #1 |
-| LoanEngine | [`0xF8DA73d32778f623D33C5D75c7359CbA1DA584ED`](https://sepolia.etherscan.io/address/0xF8DA73d32778f623D33C5D75c7359CbA1DA584ED) |
+| Merchant settlement through KeeperHub | [`0x8218f391…`](https://sepolia.etherscan.io/tx/0x8218f39198a92985e781b8b881211779a45295f8de454954aae9eec318486d0f) |
+| LoanEngine | [`0x5d6F049f…`](https://sepolia.etherscan.io/address/0x5d6F049f791C40b09701129b3663d1A8ce9eAB86) |
+| CollateralVault | [`0xDb6781ed…`](https://sepolia.etherscan.io/address/0xDb6781ed843Ba07Af3321bB8C3952db643324b98) |
+| PolarisPayments | [`0x3BD1609a…`](https://sepolia.etherscan.io/address/0x3BD1609abDC915eA9e01A399a26e2B8A2a06243f) |
 
 Full transaction list, addresses and the one remaining gap: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
@@ -36,7 +39,8 @@ Every one of those is an execution problem. Not a credit problem.
 | Installment due | Schedule trigger → `simulate` → `execute_contract_call` on `LoanEngine.repay` | Dry-run first: a borrower who is short becomes a dunning event, not a burnt transaction |
 | Loan unhealthy | `check-and-execute` on `checkLiquidatable` → `liquidate` | Read and write in **one atomic call** — no window for a last-second repayment to be liquidated on a stale read |
 | Charge failed | Typed failure → dunning ladder | Retrying an insufficient-funds revert on a network schedule is worse than useless |
-| Merchant payable | `execute_contract_call` on `PolarisMerchantEscrow.settlePayment` | Same reliability guarantees as collection |
+| Subscription due | Schedule trigger → `PolarisPayments.chargeDue` | Permissionless, so collection is not ours to monopolise |
+| Merchant payable | Settlement queue → `execute_contract_call` | Derived from collected-but-unsettled instalments, not a hardcoded list |
 | Any charge | `Idempotency-Key`, scoped per attempt | A retry storm must never double-charge a customer |
 | Everything | Terminal status reconciliation + receipts | Disputable evidence for every movement of money |
 
@@ -45,14 +49,15 @@ Every one of those is an execution problem. Not a credit problem.
 ## Repository layout
 
 ```
-packages/keeperhub    @polarispay/keeperhub — the execution engine (19 tests)
-packages/protocol     Solidity: LoanEngine, ScoreManager, CreditOracle, PoolManager…
-packages/sdk          <PayWithPolaris /> drop-in checkout component
-keeper/               The runnable keeper: collect, liquidate, settle
-apps/core             Main app — lending pools, FHEVM private vaults
-apps/merchant         Merchant portal + PolarisMerchantEscrow
-apps/shopify          Shopify payments app + checkout extension
-docs/                 Architecture and the KeeperHub surface map
+packages/contracts    LoanEngine · ScoreManager · CollateralVault · PolarisPayments · MerchantRegistry
+packages/keeperhub    the execution engine — simulate, idempotency, receipts
+packages/db           MongoDB: loan book, receipts, settlements, webhooks
+packages/sdk          createPolaris() — pay, subscribe, payLater in one call each
+keeper/               the runnable keeper: collect · liquidate · settle
+apps/merchant         merchant portal, checkout API, collections ledger
+apps/core             borrower app: credit line, plans, collateral
+apps/shopify          Shopify payments app
+docs/                 architecture, deployment, surface map, roadmap
 ```
 
 ## Quick start
@@ -97,13 +102,29 @@ pnpm keeper:all
 pnpm test
 ```
 
-19 tests over the paths where a bug costs real money: argument encoding, idempotency scoping, simulate-gating (proving no broadcast happens when simulation fails), terminal reconciliation, the atomic liquidation call, the dunning branch, and transport retry classification.
+**107 tests** — 60 Solidity, 27 engine, 13 security, 7 live against the real KeeperHub API. They cover the paths where a bug costs real money, and every exploit an audit reproduced now has a regression test: dust repayments buying liquidation immunity, self-liquidation writing off debt for free, a protocol fee charged out of principal, simulate-gating, idempotency scoping, terminal reconciliation, and the dunning branch.
+
+## The three payment modes
+
+```ts
+const polaris = createPolaris();
+
+await polaris.pay({ merchant, amount: "25.00", orderId });   // in full
+await polaris.subscribe({ planId: 1 });                      // recurring
+await polaris.payLater({ amount: "200.00", orderId });       // 4 instalments
+```
+
+Decimals are read from the token. A subscription approves one year of periods,
+not an unlimited allowance, and the subscriber can cancel unilaterally at any
+time. See [packages/sdk](packages/sdk/README.md).
 
 ## Docs
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [100-feature roadmap](docs/ROADMAP-100.md) — every entry mapped to the KeeperHub primitive that powers it
 - [KeeperHub surface map](docs/KEEPERHUB.md)
+- [Live deployment and transactions](docs/DEPLOYMENT.md)
+- [Build state](docs/FEATURES.md)
 
 ## License
 
