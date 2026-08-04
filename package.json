@@ -29,7 +29,8 @@
     "db:index": "pnpm --filter @polarispay/db index",
     "mcp:start": "pnpm --filter @polarispay/mcp start",
     "keeper:health": "pnpm --filter @polarispay/keeper health",
-    "keeper:subscriptions": "pnpm --filter @polarispay/keeper subscriptions"
+    "keeper:subscriptions": "pnpm --filter @polarispay/keeper subscriptions",
+    "keeper:close-out": "pnpm --filter @polarispay/keeper close-out"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

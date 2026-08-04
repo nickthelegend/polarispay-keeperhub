@@ -39,11 +39,12 @@ import {
   runCollection,
   runLiquidation,
   runSettlement,
+  runCloseOut,
   runSubscriptions,
   summarize,
   type JobResult,
 } from "./jobs.ts";
-import { activeSubscriptions, jsonRpc } from "./subscriptions.ts";
+import { activeSubscriptions, jsonRpc, residualLoans } from "./subscriptions.ts";
 
 const LOAN_BOOK_PATH = resolve(
   process.env.POLARIS_LOAN_BOOK ?? "keeper/data/loanbook.json"
@@ -149,6 +150,13 @@ async function subscriptions(): Promise<JobResult> {
   return await runSubscriptions({ keeper, subscriptions: active, dryRun: config.dryRun });
 }
 
+async function closeOut(): Promise<JobResult> {
+  const { keeper, config } = build();
+  const residuals = await residualLoans(config.loanEngine, jsonRpc(config.rpcUrl));
+  if (residuals.length === 0) console.log("no loans left hanging on a rounding residue");
+  return await runCloseOut({ keeper, residuals, dryRun: config.dryRun });
+}
+
 async function liquidate(): Promise<JobResult> {
   const { keeper, book, config } = build();
   return await runLiquidation({ keeper, book, dryRun: config.dryRun });
@@ -198,6 +206,7 @@ async function loop(): Promise<void> {
       const results = [
         await withHeartbeat("collection", collect),
         await withHeartbeat("subscriptions", subscriptions),
+        await withHeartbeat("close-out", closeOut),
         await withHeartbeat("liquidation", liquidate),
         await withHeartbeat("settlement", settle),
       ];
@@ -267,6 +276,7 @@ const COMMANDS: Record<string, () => Promise<unknown>> = {
   health,
   collect: () => withHeartbeat("collection", collect),
   subscriptions: () => withHeartbeat("subscriptions", subscriptions),
+  "close-out": () => withHeartbeat("close-out", closeOut),
   liquidate: () => withHeartbeat("liquidation", liquidate),
   settle: () => withHeartbeat("settlement", settle),
   run: loop,

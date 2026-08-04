@@ -12,7 +12,20 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { repaidAfterCollecting } from "../dist/index.js";
+import { buildInstallments, repaidAfterCollecting } from "../dist/index.js";
+
+/**
+ * The contract's own ladder, restated here so the test fails if either side
+ * drifts. `PolarisLoanEngine.thresholdFor` rounds each rung up; an instalment
+ * schedule that rounds any other way settles a wei short and leaves the chain's
+ * installmentsPaid counter lagging the book.
+ */
+function threshold(totalOwed: bigint, k: number, count: number): bigint {
+  if (k <= 0) return 0n;
+  if (k >= count) return totalOwed;
+  const n = BigInt(count);
+  return (totalOwed * BigInt(k) + n - 1n) / n;
+}
 
 /** A four-instalment plan of 150.00 each on a 600.03 total, as deployed. */
 const PLAN = { totalOwedRaw: "600027397", amountRaw: "150006850" };
@@ -67,5 +80,73 @@ describe("repaidAfterCollecting", () => {
       steps.push(repaid);
     }
     assert.deepEqual(steps, ["150006850", "300013700", "450020550", "600027397"]);
+  });
+});
+
+describe("buildInstallments", () => {
+  const schedule = (totalOwedRaw: bigint, count: number) =>
+    buildInstallments({
+      totalOwedRaw,
+      count,
+      intervalSeconds: 3600,
+      startAt: new Date("2026-08-04T00:00:00Z"),
+    });
+
+  it("puts every instalment exactly on a contract threshold", () => {
+    // The live loan whose 2-wei shortfall the reconciler caught: paying two
+    // 45.002054 instalments left the chain reporting 1 earned, not 2.
+    const total = 180_008_219n;
+    const insts = schedule(total, 4);
+
+    let running = 0n;
+    insts.forEach((inst, i) => {
+      running += BigInt(inst.amountRaw);
+      assert.equal(
+        running,
+        threshold(total, i + 1, 4),
+        `instalment ${i + 1} does not land on its threshold`
+      );
+    });
+  });
+
+  it("sums to exactly the amount owed", () => {
+    for (const [total, count] of [
+      [180_008_219n, 4],
+      [120_005_479n, 4],
+      [600_027_397n, 4],
+      [1n, 4],
+      [7n, 3],
+      [999_999_999_999n, 12],
+    ] as const) {
+      const sum = schedule(total, count).reduce((a, i) => a + BigInt(i.amountRaw), 0n);
+      assert.equal(sum, total, `${total} over ${count} did not sum back`);
+    }
+  });
+
+  it("never issues a negative or zero-sum schedule", () => {
+    for (const inst of schedule(7n, 3)) {
+      assert.ok(BigInt(inst.amountRaw) >= 0n, "instalment went negative");
+    }
+  });
+
+  it("keeps the chain's earned counter in step at every step", () => {
+    // Walk the plan the way the keeper does and check that after k charges the
+    // contract would agree exactly k instalments are earned.
+    const total = 180_008_219n;
+    const insts = schedule(total, 4);
+    let repaid = 0n;
+
+    insts.forEach((inst, i) => {
+      repaid += BigInt(inst.amountRaw);
+      let earned = 0;
+      while (earned < 4 && repaid >= threshold(total, earned + 1, 4)) earned++;
+      assert.equal(earned, i + 1, `after ${i + 1} charges the chain would say ${earned}`);
+    });
+  });
+
+  it("schedules one interval apart, starting one interval out", () => {
+    const insts = schedule(400n, 4);
+    assert.equal(insts[0]!.dueAt.toISOString(), "2026-08-04T01:00:00.000Z");
+    assert.equal(insts[3]!.dueAt.toISOString(), "2026-08-04T04:00:00.000Z");
   });
 });

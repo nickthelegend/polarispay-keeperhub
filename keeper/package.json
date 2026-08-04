@@ -14,7 +14,8 @@
     "doctor": "node --experimental-strip-types src/cli.ts doctor",
     "workflows:push": "node --experimental-strip-types src/cli.ts workflows:push",
     "health": "node --experimental-strip-types src/cli.ts health",
-    "subscriptions": "node --experimental-strip-types src/cli.ts subscriptions"
+    "subscriptions": "node --experimental-strip-types src/cli.ts subscriptions",
+    "close-out": "node --experimental-strip-types src/cli.ts close-out"
   },
   "dependencies": {
     "@polarispay/db": "workspace:*",

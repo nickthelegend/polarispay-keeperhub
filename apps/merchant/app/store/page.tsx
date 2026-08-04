@@ -164,9 +164,11 @@ export default function Store() {
       }
 
       setNote({ kind: 'info', text: 'Opening your payment plan…' });
-      const res = await fetch('/api/checkout', {
+      // The shop's own backend, which holds the merchant API key. Sending the
+      // key from here would publish it to every visitor.
+      const res = await fetch('/api/store/checkout', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-api-key': 'demo' },
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           borrower: wallet.address,
           amount: String(selected.price),

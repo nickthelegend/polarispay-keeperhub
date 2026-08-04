@@ -288,6 +288,20 @@ export async function recordEvent(event: {
 }
 
 /** Build the installment schedule for a new plan. */
+/**
+ * How much must be repaid for `k` of `count` instalments to count as earned.
+ *
+ * Mirrors `PolarisLoanEngine.thresholdFor` exactly, ceiling and all. The
+ * contract is the authority on when an instalment is settled; anything here
+ * that rounds differently produces a book that disagrees with the chain.
+ */
+function threshold(totalOwedRaw: bigint, k: number, count: number): bigint {
+  if (k <= 0) return 0n;
+  if (k >= count) return totalOwedRaw;
+  const n = BigInt(count);
+  return (totalOwedRaw * BigInt(k) + n - 1n) / n;
+}
+
 export function buildInstallments(params: {
   totalOwedRaw: bigint;
   count: number;
@@ -298,13 +312,21 @@ export function buildInstallments(params: {
 }): InstallmentDoc[] {
   const decimals = params.decimals ?? 6;
   const symbol = params.symbol ?? "USDC";
-  const per = params.totalOwedRaw / BigInt(params.count);
-  // The final installment absorbs the rounding remainder so the sum is exact.
-  const remainder = params.totalOwedRaw - per * BigInt(params.count);
 
   const out: InstallmentDoc[] = [];
   for (let i = 0; i < params.count; i++) {
-    const amount = i === params.count - 1 ? per + remainder : per;
+    // Each instalment is the gap between two rungs of the contract's own
+    // threshold ladder, so a charge lands exactly on a rung rather than a wei
+    // under it.
+    //
+    // Dividing the total by the count and giving the remainder to the last
+    // instalment also sums correctly, but it disagrees with the contract in the
+    // middle: PolarisLoanEngine.thresholdFor rounds each rung *up*, so a
+    // floored instalment falls short and installmentsPaid on chain lags the
+    // book by one until the final payment lands. The reconciler duly reported
+    // that as drift, because it is.
+    const amount = threshold(params.totalOwedRaw, i + 1, params.count) -
+      threshold(params.totalOwedRaw, i, params.count);
     out.push({
       index: i + 1,
       dueAt: new Date(params.startAt.getTime() + (i + 1) * params.intervalSeconds * 1000),

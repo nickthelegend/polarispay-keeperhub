@@ -301,6 +301,79 @@ export type PendingSettlement = {
   details?: string;
 };
 
+export type ResidualLoan = {
+  loanId: string;
+  /** Base units the chain still considers outstanding. */
+  residualRaw: string;
+};
+
+/**
+ * Close out loans the chain still considers open for a trailing few units.
+ *
+ * A plan can finish every instalment and still sit fractionally short. The
+ * cause is a rounding disagreement -- the contract's threshold ladder rounds
+ * each rung up, so a schedule that rounds any other way banks a small deficit
+ * that later instalments cannot recover. `buildInstallments` now follows the
+ * contract exactly, but loans opened before that fix still carry it, and any
+ * partial collection can leave the same residue.
+ *
+ * The cost of leaving it is out of all proportion to its size. The loan never
+ * reaches `Repaid`, so it stays on the borrower's dashboard, it keeps counting
+ * against their credit limit, and `CollateralVault.withdraw` refuses to release
+ * their collateral while any debt is outstanding -- indefinitely, over a
+ * fraction of a cent.
+ *
+ * Sweeping is normally a bad trade because gas costs more than the dust is
+ * worth. Here gas is sponsored, so it is nearly free, and what it buys is a
+ * plan that actually closes.
+ */
+export async function runCloseOut(opts: {
+  keeper: PolarisKeeper;
+  residuals: ResidualLoan[];
+  dryRun?: boolean;
+  log?: (line: string) => void;
+}): Promise<JobResult> {
+  const log = opts.log ?? console.log;
+
+  const result: JobResult = {
+    job: "close-out",
+    considered: opts.residuals.length,
+    acted: 0,
+    succeeded: 0,
+    failed: 0,
+    skipped: 0,
+    receipts: [],
+  };
+
+  for (const loan of opts.residuals) {
+    if (opts.dryRun) {
+      log(`[dry-run] would sweep ${loan.residualRaw} to close loan ${loan.loanId}`);
+      result.skipped++;
+      continue;
+    }
+
+    // Charged as a further attempt on the final instalment, so the idempotency
+    // key is fresh and a retry is never served the previous response.
+    const receipt = await opts.keeper.collectInstallment({
+      loanId: loan.loanId,
+      installment: 0,
+      amountRaw: loan.residualRaw,
+      amountDisplay: `${loan.residualRaw} (close-out)`,
+    });
+    result.acted++;
+    result.receipts.push(receipt);
+    log(formatReceipt(receipt));
+
+    if (receipt.outcome === "succeeded") {
+      result.succeeded++;
+    } else {
+      result.failed++;
+    }
+  }
+
+  return result;
+}
+
 /** Pay merchants what they are owed. */
 export async function runSettlement(opts: {
   keeper: PolarisKeeper;

@@ -94,3 +94,52 @@ export async function activeSubscriptions(
   }
   return out;
 }
+
+/** keccak256("loanCount()")[0:4] */
+const LOAN_COUNT_SELECTOR = "0xce63094d";
+/** keccak256("loans(uint256)")[0:4] */
+const LOAN_SELECTOR = "0xe1ec3c68";
+
+const LOAN_ACTIVE = 0;
+
+export type Residual = { loanId: string; residualRaw: string };
+
+/**
+ * Loans the chain still considers active while owing less than one unit of
+ * account -- a plan that has effectively finished but cannot close.
+ *
+ * Read from the chain for the same reason the subscription list is: the book's
+ * view is exactly the view that is wrong when this happens.
+ *
+ * `maxResidualRaw` bounds what counts as a rounding artefact rather than a
+ * genuine debt. The default is 0.01 at six decimals; anything larger is a
+ * borrower who owes money and belongs in normal collection.
+ */
+export async function residualLoans(
+  loanEngine: string,
+  rpc: Rpc,
+  maxResidualRaw = 10_000n
+): Promise<Residual[]> {
+  const countHex = await rpc(loanEngine, LOAN_COUNT_SELECTOR);
+  const count = countHex && countHex !== "0x" ? Number(BigInt(countHex)) : 0;
+
+  const out: Residual[] = [];
+  for (let id = 1; id <= count; id++) {
+    const arg = id.toString(16).padStart(64, "0");
+    const raw = await rpc(loanEngine, `${LOAN_SELECTOR}${arg}`);
+    if (!raw || raw === "0x") continue;
+
+    // borrower, merchant, principal, totalOwed, totalRepaid, installmentCount,
+    // installmentsPaid, startedAt, intervalSeconds, status.
+    if (toNumber(word(raw, 9)) !== LOAN_ACTIVE) continue;
+
+    const owed = BigInt(`0x${word(raw, 3)}`);
+    const repaid = BigInt(`0x${word(raw, 4)}`);
+    const residual = owed > repaid ? owed - repaid : 0n;
+
+    if (residual > 0n && residual <= maxResidualRaw) {
+      out.push({ loanId: String(id), residualRaw: residual.toString() });
+    }
+  }
+  return out;
+}

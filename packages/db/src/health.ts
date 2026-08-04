@@ -15,7 +15,12 @@
 import { collections } from "./client.js";
 import { formatUnits } from "./loanbook.js";
 
-export type KeeperJob = "collection" | "subscriptions" | "liquidation" | "settlement";
+export type KeeperJob =
+  | "collection"
+  | "subscriptions"
+  | "close-out"
+  | "liquidation"
+  | "settlement";
 
 export type Heartbeat = {
   job: KeeperJob;
@@ -62,6 +67,9 @@ export const STALE_AFTER_MINUTES: Record<KeeperJob, number> = {
   // urgent than a missed instalment -- but a keeper that has not looked all
   // day is still a keeper that has stopped.
   subscriptions: 720,
+  // Nothing urgent depends on a sweep running promptly; it only matters that
+  // it runs at all, so a plan is never left permanently open over dust.
+  "close-out": 1440,
   liquidation: 180,
   settlement: 360,
 };
@@ -93,7 +101,8 @@ export async function healthReport(chainId: number): Promise<HealthReport> {
   const incidents: string[] = [];
 
   const jobs = await Promise.all(
-    (["collection", "subscriptions", "liquidation", "settlement"] as KeeperJob[]).map(async (job) => {
+    (["collection", "subscriptions", "close-out", "liquidation", "settlement"] as KeeperJob[]).map(
+      async (job) => {
       const last = await events
         .find({ type: `keeper.heartbeat.${job}` })
         .sort({ createdAt: -1 })
@@ -135,7 +144,8 @@ export async function healthReport(chainId: number): Promise<HealthReport> {
         minutesSinceLastRun: minutes,
         lastResult: `${p.considered ?? 0} considered · ${p.succeeded ?? 0} ok · ${p.failed ?? 0} failed`,
       };
-    })
+      }
+    )
   );
 
   const docs = await loans.find({ chainId }).toArray();
