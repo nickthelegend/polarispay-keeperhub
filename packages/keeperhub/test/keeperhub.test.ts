@@ -17,6 +17,7 @@ import {
   partialCollection,
   PolarisKeeper,
   selfCure,
+  isIndefinite,
 } from "../dist/index.js";
 
 type Handler = (url: string, init: RequestInit) => { status: number; body: unknown };
@@ -90,6 +91,9 @@ describe("argument encoding", () => {
 });
 
 describe("idempotency scoping", () => {
+  // Only half the rule: the key advances on a definite failure so a cached one
+  // cannot replay forever, and holds when the outcome is unknown. See the
+  // indefinite-outcomes suite for the other half.
   it("varies the key per attempt so a retry is not served a cached failure", () => {
     assert.equal(chargeKey("loan-1-inst-2", 1), "loan-1-inst-2-a1");
     assert.notEqual(chargeKey("loan-1-inst-2", 1), chargeKey("loan-1-inst-2", 2));
@@ -438,5 +442,31 @@ describe("self cure", () => {
     const r = selfCure({ attemptsMade: 5 });
     assert.equal(r.allowed, false);
     assert.match(r.reason ?? "", /liquidation/);
+  });
+});
+
+describe("indefinite outcomes", () => {
+  // The rule the idempotency key turns on: rotate after a definite failure so a
+  // cached one cannot replay forever, hold it when the outcome is unknown so a
+  // still-settling charge is not sent twice.
+  it("treats a timeout and a 5xx as unknown, since the call may still be settling", () => {
+    assert.equal(isIndefinite("timeout"), true);
+    assert.equal(isIndefinite("server"), true);
+  });
+
+  it("treats a revert or a rejection as definite, because nothing was broadcast", () => {
+    for (const kind of ["would_revert", "reverted", "validation", "auth", "insufficient_funds"]) {
+      assert.equal(isIndefinite(kind), false, `${kind} should be definite`);
+    }
+  });
+
+  it("treats a missing kind as definite, so a first attempt gets a fresh key", () => {
+    assert.equal(isIndefinite(undefined), false);
+  });
+
+  // rate_limit is definite in the sense that matters here: the request was
+  // rejected before execution, so nothing is in flight to collide with.
+  it("treats a rate limit as definite", () => {
+    assert.equal(isIndefinite("rate_limit"), false);
   });
 });

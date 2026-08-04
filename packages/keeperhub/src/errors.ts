@@ -63,6 +63,28 @@ export function isKeeperHubError(err: unknown): err is KeeperHubError {
   return err instanceof KeeperHubError;
 }
 
+/**
+ * Failures that leave the on-chain outcome unknown.
+ *
+ * A revert or a validation error is definite: nothing was broadcast, and the
+ * next attempt starts from a clean slate. A timeout or a 5xx is not -- the
+ * request may have been received and may still be settling.
+ *
+ * This distinction decides whether the idempotency key may rotate. Rotating
+ * after a definite failure is necessary, because KeeperHub caches failures and
+ * a reused key would replay the old one forever. Rotating while the outcome is
+ * unknown is the opposite mistake: the new key has no record, so the call is
+ * executed again and the borrower is charged twice for one instalment.
+ */
+const INDEFINITE: ReadonlySet<KeeperHubErrorKind> = new Set([
+  "timeout",
+  "server",
+]);
+
+export function isIndefinite(kind: string | undefined): boolean {
+  return kind !== undefined && INDEFINITE.has(kind as KeeperHubErrorKind);
+}
+
 /** Map an HTTP status + body onto a typed error. */
 export function errorFromResponse(
   status: number,

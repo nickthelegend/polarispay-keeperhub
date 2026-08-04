@@ -13,6 +13,7 @@ export type { KeeperHubClientOptions, KeeperHubEvent } from "./client.js";
 export {
   classifyFailure,
   errorFromResponse,
+  isIndefinite,
   isKeeperHubError,
   KeeperHubError,
 } from "./errors.js";

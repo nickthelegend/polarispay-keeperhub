@@ -11,6 +11,7 @@ import {
   type PolarisKeeper,
   type Receipt,
   formatReceipt,
+  isIndefinite,
   nextDunningStep,
   dunningMessage,
   partialCollection,
@@ -66,6 +67,28 @@ export async function runCollection(opts: {
   for (const { loan, installment } of due) {
     const attempt = installment.attempts + 1;
 
+    /*
+     * The idempotency key must not rotate while the previous outcome is
+     * unknown.
+     *
+     * KeeperHub caches failures as well as successes, so a key that has already
+     * failed replays that failure forever and a genuine retry can never
+     * recover. Varying the key per attempt is the fix for that, and it is what
+     * this did unconditionally.
+     *
+     * It is the wrong move after a timeout. A timed-out charge may still be
+     * settling, and a fresh key has no record for KeeperHub to match, so the
+     * call is executed a second time and the borrower is charged twice for one
+     * instalment. Reusing the key is what makes that retry safe: it returns the
+     * in-flight guard while the first request runs, and the real outcome once
+     * it lands.
+     *
+     * So the key advances only on a definite failure.
+     */
+    const keyAttempt = isIndefinite(installment.lastFailureKind)
+      ? installment.attempts
+      : attempt;
+
     if (opts.dryRun) {
       log(
         `[dry-run] would collect ${installment.amountDisplay} for loan ${loan.loanId} installment ${installment.index} (attempt ${attempt})`
@@ -79,7 +102,7 @@ export async function runCollection(opts: {
       installment: installment.index,
       amountRaw: installment.amountRaw,
       amountDisplay: installment.amountDisplay,
-      attempt,
+      attempt: keyAttempt,
     });
     result.acted++;
     result.receipts.push(receipt);
