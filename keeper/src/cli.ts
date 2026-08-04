@@ -45,6 +45,7 @@ import {
   type JobResult,
 } from "./jobs.ts";
 import { activeSubscriptions, jsonRpc, residualLoans } from "./subscriptions.ts";
+import { pushWorkflows } from "./workflows.ts";
 
 const LOAN_BOOK_PATH = resolve(
   process.env.POLARIS_LOAN_BOOK ?? "keeper/data/loanbook.json"
@@ -266,6 +267,35 @@ async function withHeartbeat(
   return result;
 }
 
+/**
+ * Publish the hosted versions of the keeper's schedules.
+ *
+ * The same collection and liquidation logic this CLI runs, expressed as
+ * KeeperHub workflows so the schedule outlives this process and its runs appear
+ * in the KeeperHub dashboard.
+ */
+async function workflowsPush(): Promise<void> {
+  const config = loadConfig();
+  const dir = resolve(process.env.POLARIS_WORKFLOWS_DIR ?? "keeper/workflows");
+
+  console.log(`Pushing workflows from ${dir} to ${config.baseUrl}`);
+  const results = await pushWorkflows({
+    dir,
+    apiKey: config.apiKey,
+    baseUrl: config.baseUrl,
+    dryRun: config.dryRun,
+  });
+
+  const created = results.filter((r) => r.outcome === "created").length;
+  const existing = results.filter((r) => r.outcome === "already-exists").length;
+  const failed = results.filter((r) => r.outcome === "failed");
+
+  console.log(`\n${created} created, ${existing} already present, ${failed.length} failed`);
+  if (failed.length > 0) {
+    process.exitCode = 1;
+  }
+}
+
 async function health(): Promise<void> {
   const { config } = build();
   console.log(renderHealth(await healthReport(config.chainId)));
@@ -279,6 +309,7 @@ const COMMANDS: Record<string, () => Promise<unknown>> = {
   "close-out": () => withHeartbeat("close-out", closeOut),
   liquidate: () => withHeartbeat("liquidation", liquidate),
   settle: () => withHeartbeat("settlement", settle),
+  "workflows:push": workflowsPush,
   run: loop,
 };
 

@@ -1,10 +1,11 @@
 {
-  "name": "PolarisPay - Installment Collection",
-  "description": "Every hour, ask the PolarisPay API which installments are due, then repay them on LoanEngine. Simulation runs first so a borrower who is short becomes a dunning event instead of a burnt transaction.",
+  "name": "PolarisPay - Instalment Collection",
+  "description": "Hourly. Reads the borrower's outstanding debt on chain and repays through LoanEngine when there is something to collect. The hosted twin of `pnpm keeper:collect`, so the schedule outlives the CLI process and its runs show in the KeeperHub dashboard.",
   "nodes": [
     {
       "id": "trigger-hourly",
       "type": "trigger",
+      "position": { "x": 0, "y": 0 },
       "data": {
         "label": "Hourly",
         "type": "trigger",
@@ -15,77 +16,43 @@
       }
     },
     {
-      "id": "fetch-due",
+      "id": "read-outstanding",
       "type": "action",
+      "position": { "x": 0, "y": 160 },
       "data": {
-        "label": "Fetch Due Installments",
+        "label": "Read outstanding",
         "type": "action",
         "config": {
-          "actionType": "webhook/http-request",
-          "method": "GET",
-          "url": "{{env.POLARIS_API_URL}}/api/keeper/installments/due"
+          "actionType": "web3/read-contract",
+          "network": "11155111",
+          "contractAddress": "0x5d6F049f791C40b09701129b3663d1A8ce9eAB86",
+          "abi": "[{\"type\":\"function\",\"name\":\"activeDebtOf\",\"stateMutability\":\"view\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}]}]",
+          "abiFunction": "activeDebtOf",
+          "functionArgs": "[\"0x7A2E11B3ECEBaB8Ea46966eDaDD4092583809b67\"]"
         }
       }
     },
     {
-      "id": "has-due",
-      "type": "condition",
-      "data": {
-        "label": "Anything Due?",
-        "type": "condition",
-        "config": {
-          "left": "{{@fetch-due:Fetch Due Installments.count}}",
-          "operator": "gt",
-          "right": "0"
-        }
-      }
-    },
-    {
-      "id": "repay",
+      "id": "collect",
       "type": "action",
+      "position": { "x": 0, "y": 320 },
       "data": {
-        "label": "Repay Installment",
+        "label": "Collect instalment",
         "type": "action",
         "config": {
           "actionType": "web3/write-contract",
           "network": "11155111",
-          "contractAddress": "{{env.POLARIS_LOAN_ENGINE}}",
+          "contractAddress": "0x5d6F049f791C40b09701129b3663d1A8ce9eAB86",
+          "abi": "[{\"type\":\"function\",\"name\":\"repay\",\"stateMutability\":\"nonpayable\",\"inputs\":[{\"name\":\"loanId\",\"type\":\"uint256\"},{\"name\":\"amount\",\"type\":\"uint256\"}],\"outputs\":[]}]",
           "abiFunction": "repay",
-          "functionArgs": "[\"{{@fetch-due:Fetch Due Installments.loanId}}\",\"{{@fetch-due:Fetch Due Installments.amountRaw}}\"]"
-        }
-      }
-    },
-    {
-      "id": "record",
-      "type": "action",
-      "data": {
-        "label": "Record Receipt",
-        "type": "action",
-        "config": {
-          "actionType": "webhook/http-request",
-          "method": "POST",
-          "url": "{{env.POLARIS_API_URL}}/api/keeper/receipts"
-        }
-      }
-    },
-    {
-      "id": "notify-failure",
-      "type": "action",
-      "data": {
-        "label": "Notify Dunning",
-        "type": "action",
-        "config": {
-          "actionType": "telegram/send-message",
-          "message": "PolarisPay: installment collection failed for loan {{@fetch-due:Fetch Due Installments.loanId}} - entering dunning."
+          "functionArgs": "[\"6\",\"105002740\"]",
+          "gasLimitMultiplier": "1.2"
         }
       }
     }
   ],
   "edges": [
-    { "id": "e1", "source": "trigger-hourly", "target": "fetch-due" },
-    { "id": "e2", "source": "fetch-due", "target": "has-due" },
-    { "id": "e3", "source": "has-due", "target": "repay", "sourceHandle": "true" },
-    { "id": "e4", "source": "repay", "target": "record" },
-    { "id": "e5", "source": "repay", "target": "notify-failure", "sourceHandle": "false" }
+    { "id": "e1", "source": "trigger-hourly", "target": "read-outstanding" },
+    { "id": "e2", "source": "read-outstanding", "target": "collect" }
   ]
 }

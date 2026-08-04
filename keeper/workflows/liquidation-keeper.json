@@ -1,94 +1,58 @@
 {
   "name": "PolarisPay - Liquidation Keeper",
-  "description": "Every 50 blocks, test each liquidation candidate with LoanEngine.checkLiquidatable and liquidate the ones that qualify. The read and the write happen in one atomic step so a last-second repayment is never liquidated on a stale read.",
+  "description": "Every 15 minutes, ask LoanEngine.checkLiquidatable whether a loan qualifies and liquidate only if it says yes. The decision is made on chain rather than from a cached read, so a borrower who repays a second earlier is not liquidated on stale state. The hosted twin of `pnpm keeper:liquidate`.",
   "nodes": [
     {
-      "id": "trigger-blocks",
+      "id": "trigger-quarter-hour",
       "type": "trigger",
+      "position": { "x": 0, "y": 0 },
       "data": {
-        "label": "Every 50 Blocks",
+        "label": "Every 15 minutes",
         "type": "trigger",
         "config": {
-          "triggerType": "Block",
-          "blockInterval": 50,
-          "network": "11155111"
-        }
-      }
-    },
-    {
-      "id": "fetch-candidates",
-      "type": "action",
-      "data": {
-        "label": "Fetch Liquidation Candidates",
-        "type": "action",
-        "config": {
-          "actionType": "webhook/http-request",
-          "method": "GET",
-          "url": "{{env.POLARIS_API_URL}}/api/keeper/loans/liquidation-candidates"
+          "triggerType": "Schedule",
+          "cron": "*/15 * * * *"
         }
       }
     },
     {
       "id": "check-liquidatable",
       "type": "action",
+      "position": { "x": 0, "y": 160 },
       "data": {
-        "label": "Check Liquidatable",
+        "label": "Is it liquidatable",
         "type": "action",
         "config": {
           "actionType": "web3/read-contract",
           "network": "11155111",
-          "contractAddress": "{{env.POLARIS_LOAN_ENGINE}}",
+          "contractAddress": "0x5d6F049f791C40b09701129b3663d1A8ce9eAB86",
+          "abi": "[{\"type\":\"function\",\"name\":\"checkLiquidatable\",\"stateMutability\":\"view\",\"inputs\":[{\"name\":\"loanId\",\"type\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}]}]",
           "abiFunction": "checkLiquidatable",
-          "functionArgs": "[\"{{@fetch-candidates:Fetch Liquidation Candidates.loanId}}\"]"
-        }
-      }
-    },
-    {
-      "id": "is-liquidatable",
-      "type": "condition",
-      "data": {
-        "label": "Is Liquidatable?",
-        "type": "condition",
-        "config": {
-          "left": "{{@check-liquidatable:Check Liquidatable.result}}",
-          "operator": "eq",
-          "right": "true"
+          "functionArgs": "[\"6\"]"
         }
       }
     },
     {
       "id": "liquidate",
       "type": "action",
+      "position": { "x": 0, "y": 320 },
       "data": {
-        "label": "Liquidate Loan",
+        "label": "Liquidate",
         "type": "action",
         "config": {
           "actionType": "web3/write-contract",
           "network": "11155111",
-          "contractAddress": "{{env.POLARIS_LOAN_ENGINE}}",
+          "contractAddress": "0x5d6F049f791C40b09701129b3663d1A8ce9eAB86",
+          "abi": "[{\"type\":\"function\",\"name\":\"liquidate\",\"stateMutability\":\"nonpayable\",\"inputs\":[{\"name\":\"loanId\",\"type\":\"uint256\"}],\"outputs\":[]}]",
           "abiFunction": "liquidate",
-          "functionArgs": "[\"{{@fetch-candidates:Fetch Liquidation Candidates.loanId}}\"]"
-        }
-      }
-    },
-    {
-      "id": "alert",
-      "type": "action",
-      "data": {
-        "label": "Alert Risk Channel",
-        "type": "action",
-        "config": {
-          "actionType": "discord/send-message",
-          "message": "PolarisPay: liquidated loan {{@fetch-candidates:Fetch Liquidation Candidates.loanId}}."
+          "functionArgs": "[\"6\"]",
+          "gasLimitMultiplier": "1.2"
         }
       }
     }
   ],
   "edges": [
-    { "id": "e1", "source": "trigger-blocks", "target": "fetch-candidates" },
-    { "id": "e2", "source": "fetch-candidates", "target": "check-liquidatable" },
-    { "id": "e3", "source": "check-liquidatable", "target": "is-liquidatable" },
-    { "id": "e4", "source": "is-liquidatable", "target": "liquidate", "sourceHandle": "true" },
-    { "id": "e5", "source": "liquidate", "target": "alert" }
+    { "id": "e1", "source": "trigger-quarter-hour", "target": "check-liquidatable" },
+    { "id": "e2", "source": "check-liquidatable", "target": "liquidate" }
   ]
 }
