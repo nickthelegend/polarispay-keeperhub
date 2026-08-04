@@ -1,126 +1,151 @@
 "use client"
 
-import { Search, Globe, Gamepad2, Cpu, Sparkles, Tv, Zap, ArrowRight } from "lucide-react"
-import { ConnectGate } from "@/components/connect-gate"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { useState, useEffect } from "react"
-import Link from "next/link"
+import { useState } from "react"
+import useSWR from "swr"
+import { ArrowUpRight, Search, Store } from "lucide-react"
 
-const CATEGORIES = ["ALL", "Gaming", "Technology", "Entertainment", "Fashion", "Travel"]
+import { ConnectGate } from "@/components/connect-gate"
+
+/**
+ * Merchants accepting Polaris.
+ *
+ * The version of this page it replaced advertised "VENDORS: 1,248" and
+ * "UPTIME: 99.99%" as literals, filtered on a `category` field the merchant
+ * records do not have, and rendered `$NaN` for a `credit_limit` that does not
+ * exist either. It described a network that was not there.
+ *
+ * The registry is small and real. Showing it honestly is more persuasive than
+ * inventing a directory, and every merchant here has a payout address you can
+ * go and look at.
+ */
+
+type Merchant = {
+  merchantId: string
+  chainId: number
+  name: string
+  payoutAddress: string
+  createdAt: string
+}
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Request failed (${res.status})`)
+  return res.json()
+}
+
+/** The storefront that ships with the project, so the list is never a dead end. */
+const DEMO_STORE = "http://localhost:3111/store"
 
 export default function MerchantsPage() {
-    const [merchants, setMerchants] = useState<any[]>([])
+  return (
+    <ConnectGate>
+      <Merchants />
+    </ConnectGate>
+  )
+}
 
-    useEffect(() => {
-        fetch("/api/merchants").then(r => r.json()).then(d => setMerchants(Array.isArray(d) ? d : [])).catch(() => {})
-    }, [])
+function Merchants() {
+  const { data, error } = useSWR<Merchant[]>("/api/merchants", fetcher, {
+    refreshInterval: 60_000,
+  })
+  const [search, setSearch] = useState("")
 
-    const [search, setSearch] = useState("")
-    const [activeTab, setActiveTab] = useState("ALL")
+  const merchants = (data ?? []).filter((m) =>
+    m.name.toLowerCase().includes(search.trim().toLowerCase())
+  )
 
-    return (
-        <ConnectGate>
-            <div className="relative z-10 w-full font-mono">
-                {/* Header Intro */}
-                <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-xl font-bold tracking-tighter uppercase text-primary mb-1">
-                            SECURE_VENDOR_NETWORK // PROTOCOL_V.2.1
-                        </h1>
-                        <p className="text-[10px] text-foreground/40 uppercase tracking-widest">
-                            Verified merchants with instant BNPL integration enabled
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-6 text-[9px] tracking-[0.2em] text-foreground/30 uppercase">
-                        <span className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                            VENDORS: 1,248
-                        </span>
-                        <span>UPTIME: 99.99%</span>
-                    </div>
-                </div>
+  return (
+    <div className="space-y-8 pt-6">
+      <header className="space-y-2">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Merchants</h1>
+        <p className="text-sm text-foreground/50 max-w-2xl">
+          Shops accepting Polaris. Any merchant can register and start splitting checkouts into
+          four — settlement lands in their payout address on schedule.
+        </p>
+      </header>
 
-                {/* Search & Filters */}
-                <div className="mb-8 space-y-4">
-                    <div className="relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-primary size-5" />
-                        <Input
-                            className="w-full bg-navy-950/50 border-2 border-primary/30 focus:border-primary outline-none px-12 py-7 rounded-xl text-primary placeholder:text-primary/40 font-mono tracking-widest text-sm transition-all shadow-[0_0_15px_rgba(167,242,74,0.05)]"
-                            placeholder="[SEARCH_MERCHANT_DATABASE]"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                    </div>
+      <div className="relative max-w-md">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-foreground/30" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search merchants"
+          className="w-full rounded-xl border border-primary/20 bg-black/40 py-3 pl-11 pr-4 text-sm outline-none transition-colors focus:border-primary/50"
+        />
+      </div>
 
-                    <div className="flex flex-wrap gap-2">
-                        {CATEGORIES.map((cat) => (
-                            <button
-                                key={cat}
-                                onClick={() => setActiveTab(cat)}
-                                className={`px-4 py-1.5 rounded border text-[10px] font-bold tracking-widest transition-all uppercase ${activeTab === cat
-                                    ? "border-primary bg-primary text-black"
-                                    : "border-white/10 text-foreground/40 hover:border-primary/50 hover:text-primary"
-                                    }`}
-                            >
-                                {cat}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+      {error && (
+        <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          Could not load the merchant registry: {error.message}
+        </p>
+      )}
 
-                {/* Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
-                    {merchants.filter((m: any) =>
-                        (activeTab === "ALL" || m.category === activeTab) &&
-                        m.name.toLowerCase().includes(search.toLowerCase())
-                    ).map((m: any) => {
-                        // Dynamic icon mapping based on category or name
-                        let IconComponent = Globe;
-                        if (m.category === 'Gaming') IconComponent = Gamepad2;
-                        if (m.category === 'Technology') IconComponent = Cpu;
-                        if (m.category === 'Fashion') IconComponent = Sparkles;
-                        if (m.category === 'Entertainment') IconComponent = Tv;
+      {!data && !error && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-36 rounded-2xl border border-primary/10 bg-primary/[0.02] animate-pulse"
+            />
+          ))}
+        </div>
+      )}
 
-                        return (
-                            <div key={m.id} className="glass-card p-6 rounded-2xl flex flex-col group hover:border-primary/40 transition-all bg-card/20 border border-white/5 backdrop-blur-xl">
-                                <div className="flex justify-between items-start mb-10">
-                                    <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 group-hover:border-primary/30 transition-colors">
-                                        <IconComponent className="size-6 text-foreground/40 group-hover:text-primary transition-colors" />
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="text-[9px] text-foreground/30 block mb-1 uppercase tracking-tighter font-bold">MAX_BORROW_CAPACITY</span>
-                                        <span className="text-lg font-bold text-foreground font-mono italic">${Number(m.credit_limit).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                                    </div>
-                                </div>
+      {data && merchants.length === 0 && (
+        <div className="rounded-2xl border border-primary/10 px-5 py-10 text-center space-y-2">
+          <Store className="size-6 text-foreground/30 mx-auto" />
+          <p className="text-sm text-foreground/50">
+            {search ? `No merchant matches "${search}".` : "No merchants registered yet."}
+          </p>
+        </div>
+      )}
 
-                                <div className="mb-8">
-                                    <h3 className="text-white font-bold tracking-widest mb-3 uppercase leading-tight">{m.name}</h3>
-                                    <div className="inline-flex items-center px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20">
-                                        <span className="text-[9px] font-bold text-primary tracking-widest uppercase">{m.plan_description}</span>
-                                    </div>
-                                </div>
-
-                                <Link href="/checkout" className="mt-auto">
-                                    <Button className="w-full bg-primary hover:bg-primary/90 text-black py-6 rounded-xl font-bold text-xs tracking-[0.2em] transition-all neon-glow flex items-center justify-center gap-2 uppercase">
-                                        INITIATE PURCHASE
-                                        <ArrowRight className="size-4" />
-                                    </Button>
-                                </Link>
-                            </div>
-                        )
-                    })}
-                </div>
-
-                {/* Footer info for this section */}
-                <div className="flex flex-col md:flex-row items-center justify-between text-[9px] tracking-[0.3em] text-foreground/20 gap-4 py-8 border-t border-white/5">
-                    <div className="flex items-center gap-8 uppercase">
-                        <span>ENCRYPTION_LAYER_4_ACTIVE</span>
-                        <span className="hidden sm:inline">SSL_256_BIT_SECURITY</span>
-                    </div>
-                    <p className="italic uppercase">© 2024 OBOLUS_PROTOCOL_ASSETS</p>
-                </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {merchants.map((m) => (
+          <article
+            key={m.merchantId}
+            className="rounded-2xl border border-primary/15 bg-[#05080f]/40 p-5 flex flex-col gap-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="size-10 rounded-xl border border-primary/20 bg-primary/5 flex items-center justify-center shrink-0">
+                <Store className="size-4 text-primary" />
+              </div>
+              <span className="text-[10px] uppercase tracking-widest text-foreground/30">
+                since {new Date(m.createdAt).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
+              </span>
             </div>
-        </ConnectGate>
-    )
+
+            <div className="space-y-1">
+              <h2 className="font-semibold leading-tight">{m.name}</h2>
+              <p className="text-xs text-foreground/40 font-mono">{m.merchantId}</p>
+            </div>
+
+            <div className="mt-auto space-y-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-foreground/30">
+                  Settles to
+                </p>
+                <a
+                  href={`https://sepolia.etherscan.io/address/${m.payoutAddress}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-mono text-foreground/60 hover:text-primary transition-colors inline-flex items-center gap-1"
+                >
+                  {m.payoutAddress.slice(0, 10)}…{m.payoutAddress.slice(-8)}
+                  <ArrowUpRight className="size-3" />
+                </a>
+              </div>
+
+              <a
+                href={DEMO_STORE}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-black transition-all hover:brightness-110 active:scale-[0.98]"
+              >
+                Shop <ArrowUpRight className="size-3.5" />
+              </a>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  )
 }

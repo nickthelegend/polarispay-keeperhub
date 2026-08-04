@@ -1,173 +1,236 @@
 "use client"
 
-import {
-  FolderOpen,
-  ShieldCheck,
-  Zap,
-  Lock,
-  Terminal,
-  Code,
-  HelpCircle,
-  ChevronRight,
-  Database
-} from "lucide-react"
+import { useState } from "react"
+import { Check, Copy, ExternalLink } from "lucide-react"
+
+/**
+ * Integration docs.
+ *
+ * The page this replaced described "a Confidential Lending Protocol built on
+ * Fhenix's FHEVM" with homomorphically encrypted balances -- an accurate
+ * description of a different project. Everything here is the API that actually
+ * ships in packages/sdk, against the addresses actually deployed.
+ */
+
+const CONTRACTS: Array<[string, string]> = [
+  ["PolarisLoanEngine", "0x5d6F049f791C40b09701129b3663d1A8ce9eAB86"],
+  ["ScoreManager", "0x13C5af8f4c6E7f3b26998451Cf4FD65a6Ca268e2"],
+  ["CollateralVault", "0xDb6781ed843Ba07Af3321bB8C3952db643324b98"],
+  ["PolarisPayments", "0x3BD1609abDC915eA9e01A399a26e2B8A2a06243f"],
+  ["MerchantRegistry", "0xb2eCAD5bE07971deE1be161C39569705186AdFD6"],
+  ["Test token (pUSDC)", "0x49C86277a91002c4943837bf20F6ED41976Db09F"],
+]
+
+const INSTALL = `pnpm add @polarispay/sdk`
+
+const CHECKOUT = `import { PayWithPolarisBNPL } from "@polarispay/sdk";
+
+// One component. It reads the shopper's limit from the chain, shows the
+// four-payment schedule, and opens the plan.
+<PayWithPolarisBNPL
+  merchant="0xYourPayoutAddress"
+  amount="180.00"
+  orderId="ORDER-1042"
+  onSuccess={(r) => console.log(r.transactionHash)}
+/>`
+
+const HEADLESS = `import { createPolaris } from "@polarispay/sdk";
+
+const polaris = createPolaris();
+await polaris.connect();
+
+// Will this shopper's limit cover it?
+const { eligible, limit } = await polaris.canPayLater("180.00");
+
+if (eligible) {
+  await polaris.payLater({
+    merchant: "0xYourPayoutAddress",
+    amount: "180.00",
+    orderId: "ORDER-1042",
+    installments: 4,
+    intervalSeconds: 60 * 60 * 24 * 14, // fortnightly
+  });
+} else {
+  await polaris.pay({ merchant: "0xYourPayoutAddress", amount: "180.00", orderId: "ORDER-1042" });
+}`
+
+const AGENT = `// The MCP server exposes the same operations to an AI agent.
+// Point your client at packages/mcp and it gets:
+polaris_get_credit          // score, limit, what is available
+polaris_can_afford          // check before committing to a purchase
+polaris_pay_now             // pay a merchant outright
+polaris_pay_later           // open a four-payment plan
+polaris_subscribe           // start a recurring plan
+polaris_cancel_subscription
+polaris_lock_collateral     // raise the limit`
+
+const WEBHOOK = `import { verifySignature } from "@polarispay/db";
+
+app.post("/polaris", (req, res) => {
+  const check = verifySignature(
+    process.env.POLARIS_WEBHOOK_SECRET,
+    req.rawBody,
+    req.headers["polaris-signature"]
+  );
+  if (!check.ok) return res.status(400).send(check.reason);
+
+  // Delivery is at-least-once: key on eventId and treat a repeat as a no-op.
+  handle(JSON.parse(req.rawBody));
+  res.sendStatus(200);
+});`
+
+const EVENTS: Array<[string, string]> = [
+  ["plan.opened", "A shopper split a checkout into instalments."],
+  ["installment.collected", "The keeper charged one on schedule."],
+  ["installment.failed", "A charge did not go through; dunning has started."],
+  ["plan.completed", "Every instalment is paid."],
+  ["plan.liquidated", "The plan defaulted and collateral was seized."],
+  ["settlement.paid", "Collected funds landed in your payout address."],
+]
 
 export default function DocsPage() {
   return (
-    <div className="flex -mx-4 md:-mx-8 lg:-mx-12 h-[calc(100vh-140px)] overflow-hidden border-t border-white/5 font-mono">
-      {/* Left Column: Navigation Tree */}
-      <aside className="w-72 glass-sidebar flex flex-col custom-scrollbar overflow-y-auto hidden lg:flex bg-[#05080f]/70 border-r border-white/5">
-        <div className="p-8">
-          <div className="mb-10">
-            <h1 className="text-white text-sm font-black tracking-[0.2em] mb-1">POLARIS_V2</h1>
-            <p className="text-primary/60 text-[9px] font-bold uppercase tracking-[0.3em]">CONFIDENTIAL_LENDING_BETA</p>
-          </div>
-          <nav className="space-y-2">
-            {[
-              { id: "intro", label: "01_INTRODUCTION", icon: FolderOpen },
-              { id: "fhevm", label: "02_FHEVM_RUNTIME", icon: ShieldCheck },
-              { id: "pools", label: "03_PRIVATE_POOLS", icon: Database },
-              { id: "borrowing", label: "04_BORROW_LOGIC", icon: Zap },
-              { id: "liquidation", label: "05_LIQUIDATION", icon: Lock },
-            ].map((item) => (
-              <a key={item.id} className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-[11px] font-bold tracking-tighter text-white/50 hover:text-white" href={`#${item.id}`}>
-                <item.icon className="text-white/20 group-hover:text-primary size-4" />
-                {item.label}
-              </a>
-            ))}
-          </nav>
-        </div>
-        <div className="mt-auto p-8 border-t border-white/5">
-          <button className="w-full flex items-center justify-center gap-2 border border-primary/40 text-primary px-4 py-3 rounded-xl text-[10px] font-black hover:bg-primary/10 transition-all uppercase tracking-widest">
-            <Code className="size-3" />
-            V2_SOURCE_CODE
-          </button>
-        </div>
-      </aside>
+    <div className="space-y-12 pt-6 pb-16 max-w-3xl">
+      <header className="space-y-3">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Integrate Polaris</h1>
+        <p className="text-sm text-foreground/50">
+          Buy now, pay later as a drop-in checkout. Your shopper's limit is underwritten from their
+          own chain history, instalments are collected automatically by a keeper running on
+          KeeperHub, and you are settled without chasing anyone.
+        </p>
+      </header>
 
-      {/* Center Column: Main Content */}
-      <main className="flex-1 custom-scrollbar overflow-y-auto bg-background/20">
-        <div className="max-w-4xl mx-auto px-12 py-12">
-          {/* Breadcrumbs */}
-          <div className="flex items-center gap-2 mb-10 font-mono text-[9px] tracking-[0.4em] text-white/20 uppercase">
-            <a className="hover:text-primary transition-colors" href="#">PROTOCOL</a>
-            <ChevronRight className="size-2 text-white/10" />
-            <span className="text-primary/70">ARCH_SPECIFICATION</span>
-          </div>
+      <Section title="Install">
+        <Code text={INSTALL} lang="bash" />
+      </Section>
 
-          <div className="mb-16">
-            <h1 className="text-5xl font-black tracking-tighter leading-none mb-8 text-white uppercase italic">
-              POLARIS_PROTOCOL <span className="text-primary">//</span> <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/30">CONFIDENTIAL_SPEC</span>
-            </h1>
-            <p className="text-white/40 text-sm leading-relaxed max-w-2xl font-medium">
-              A state-of-the-art Confidential Lending Protocol built on Fhenix's FHEVM. Polaris enables users to supply collateral and borrow assets with 100% on-chain privacy for positions and debts.
-            </p>
-          </div>
+      <Section
+        title="Drop-in checkout"
+        blurb="The fastest path: one component, no contract calls of your own."
+      >
+        <Code text={CHECKOUT} />
+      </Section>
 
-          <div className="space-y-24 pb-32">
-            <section id="intro" className="space-y-6">
-              <div className="flex items-center gap-4">
-                <span className="text-primary font-mono text-sm">[1.0]</span>
-                <h3 className="text-2xl font-black tracking-tight uppercase italic text-white">THE_FHE_ADVANTAGE</h3>
-              </div>
-              <p className="text-white/60 text-xs leading-relaxed uppercase tracking-wider">
-                Unlike traditional lending protocols where every position is public, Polaris encrypts your balance and debt using **Fully Homomorphic Encryption**. Operations like interest accrual and health factor checks occur entirely within the encrypted state.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                <div className="p-6 bg-white/5 border border-white/10 rounded-2xl space-y-3">
-                  <h4 className="text-primary text-[10px] font-black uppercase tracking-[0.2em]">State_Confidentiality</h4>
-                  <p className="text-[10px] text-white/40 leading-relaxed font-bold uppercase italic tracking-tighter">Your debt amount and collateral value are invisible to the public, including the protocol operators.</p>
-                </div>
-                <div className="p-6 bg-white/5 border border-white/10 rounded-2xl space-y-3">
-                  <h4 className="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em]">Coprocessor_Execution</h4>
-                  <p className="text-[10px] text-white/40 leading-relaxed font-bold uppercase italic tracking-tighter">Large computations are offloaded to Fhenix's coprocessors to ensure high performance on Sepolia.</p>
-                </div>
-              </div>
-            </section>
+      <Section
+        title="Headless"
+        blurb="When you want your own UI. Fall back to paying in full when the limit will not stretch."
+      >
+        <Code text={HEADLESS} />
+      </Section>
 
-            <section id="pools" className="space-y-6">
-              <div className="flex items-center gap-4">
-                <span className="text-primary font-mono text-sm">[2.0]</span>
-                <h3 className="text-2xl font-black tracking-tight uppercase italic text-white">PRIVATE_LIQUIDITY_POOLS</h3>
-              </div>
-              <p className="text-white/60 text-xs leading-relaxed uppercase tracking-wider">
-                Assets are supplied to vaults where the total liquidity is encrypted. Deposits use **Encrypted Inputs** (externalEuint128) with ZK-Proofs to ensure validity without revealing amounts.
-              </p>
+      <Section
+        title="For agents"
+        blurb="An agent with a wallet can transact against the same protocol over MCP."
+      >
+        <Code text={AGENT} />
+      </Section>
 
-              {/* Terminal Code Block */}
-              <div className="bg-zinc-950 rounded-2xl overflow-hidden border border-white/10 shadow-3xl">
-                <div className="bg-white/5 px-6 py-3 flex items-center justify-between border-b border-white/5">
-                  <div className="flex gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500/50" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
-                    <div className="w-3 h-3 rounded-full bg-green-500/50" />
-                  </div>
-                  <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em]">Solidity // PrivateLendingPool.sol</span>
-                </div>
-                <div className="p-8 font-mono text-[11px] leading-relaxed text-white/80">
-                  <div><span className="text-primary font-bold">function</span> <span className="text-blue-400 font-bold">supply</span>(externalEuint128 <span className="text-white">encryptedAmount</span>, <span className="text-primary">bytes</span> <span className="text-white">proof</span>) <span className="text-primary">external</span> {'{'}</div>
-                  <div className="pl-6 text-white/50 italic">// Convert handle to encrypted type</div>
-                  <div className="pl-6"><span className="text-blue-400">euint128</span> <span className="text-white">amount</span> = <span className="text-primary">FHE</span>.fromExternal(<span className="text-white">encryptedAmount</span>, <span className="text-white">proof</span>);</div>
-                  <div className="pl-6"><span className="text-white">balances</span>[msg.sender] = <span className="text-primary">FHE</span>.add(<span className="text-white">balances</span>[msg.sender], <span className="text-white">amount</span>);</div>
-                  <div className="pl-6"><span className="text-primary">FHE</span>.allowThis(<span className="text-white">balances</span>[msg.sender]);</div>
-                  <div>{'}'}</div>
-                </div>
-              </div>
-            </section>
-
-            <section id="borrowing" className="space-y-6">
-              <div className="flex items-center gap-4">
-                <span className="text-primary font-mono text-sm">[3.0]</span>
-                <h3 className="text-2xl font-black tracking-tight uppercase italic text-white">BORROW_LOAN_TO_VALUE</h3>
-              </div>
-              <p className="text-white/60 text-xs leading-relaxed uppercase tracking-wider">
-                Borrowing logic enforces a 150% collateral ratio. The condition `weightedCollateral {">="} requiredDebt` is computed homomorphically, returning an encrypted boolean (`ebool`) that determines if the update clears.
-              </p>
-              <div className="p-8 bg-primary/5 border border-primary/20 rounded-2xl">
-                 <div className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-4">HEALTH_FACTOR_LOGIC</div>
-                 <div className="text-sm font-black text-white leading-relaxed font-mono italic">
-                    HF = (Private_Collateral * 100) / (Private_Debt * 150)
-                 </div>
-                 <div className="text-[10px] text-white/30 mt-4 uppercase font-bold">Processed in Coprocessor // Result Re-encrypted for Owner</div>
-              </div>
-            </section>
-          </div>
-        </div>
-      </main>
-
-      {/* Right Column: Key Metrics */}
-      <aside className="w-72 glass-sidebar p-10 hidden xl:flex flex-col bg-[#05080f]/70 border-l border-white/5">
-        <div className="sticky top-0 space-y-12">
-          <div>
-            <h5 className="text-white text-[9px] font-black tracking-[0.4em] uppercase mb-8 opacity-40">Documentation_Progress</h5>
-            <div className="space-y-8">
-              {[
-                { label: "ARCH_SUMMARY", pct: "100%" },
-                { label: "POOL_SPECS", pct: "100%" },
-                { label: "BORROW_API", pct: "85%" },
-                { label: "ZK_INPUTS", pct: "40%" },
-              ].map(p => (
-                <div key={p.label} className="space-y-3">
-                  <div className="flex justify-between text-[9px] font-black text-white/60">
-                    <span>{p.label}</span>
-                    <span>{p.pct}</span>
-                  </div>
-                  <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-primary" style={{ width: p.pct }}></div>
-                  </div>
-                </div>
-              ))}
+      <Section
+        title="Webhooks"
+        blurb="Signed with an HMAC over timestamp.body, so a captured payload cannot be replayed forever."
+      >
+        <Code text={WEBHOOK} />
+        <dl className="mt-4 divide-y divide-primary/10 rounded-2xl border border-primary/15 overflow-hidden">
+          {EVENTS.map(([name, what]) => (
+            <div key={name} className="flex flex-col sm:flex-row gap-1 sm:gap-4 px-4 py-3">
+              <dt className="font-mono text-xs text-primary sm:w-52 shrink-0">{name}</dt>
+              <dd className="text-sm text-foreground/60">{what}</dd>
             </div>
-          </div>
+          ))}
+        </dl>
+      </Section>
 
-          <div className="p-6 bg-[#1a1c22] border border-white/5 rounded-2xl space-y-4">
-             <Terminal className="text-primary size-5" />
-             <p className="text-[10px] font-black text-white uppercase tracking-wider">Integration Support</p>
-             <p className="text-[9px] text-white/30 uppercase leading-relaxed">Connect with our engineering team on the Fhenix ecosystem Discord for Sepolia deployment support.</p>
-          </div>
+      <Section title="Deployed on Sepolia">
+        <dl className="divide-y divide-primary/10 rounded-2xl border border-primary/15 overflow-hidden">
+          {CONTRACTS.map(([name, address]) => (
+            <div
+              key={address}
+              className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 px-4 py-3"
+            >
+              <dt className="text-sm sm:w-48 shrink-0">{name}</dt>
+              <dd className="min-w-0">
+                <a
+                  href={`https://sepolia.etherscan.io/address/${address}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-mono text-xs text-foreground/50 hover:text-primary transition-colors inline-flex items-center gap-1 break-all"
+                >
+                  {address}
+                  <ExternalLink className="size-3 shrink-0" />
+                </a>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </Section>
+
+      <Section title="How collection works">
+        <div className="space-y-3 text-sm text-foreground/60 leading-relaxed">
+          <p>
+            When an instalment comes due, a keeper checks the loan on chain and charges it through
+            KeeperHub's execution API. Gas is sponsored, so the shopper never needs ETH to repay —
+            which removes the single most common reason a repayment fails.
+          </p>
+          <p>
+            A charge that fails enters dunning and is retried on a backoff rather than being written
+            off. Once a plan has run past its grace period it becomes liquidatable, and the keeper
+            recovers what it can from collateral.
+          </p>
+          <p>
+            Every execution is idempotent per attempt, so a retried request never charges a shopper
+            twice — and because a sponsored execution runs through a smart account, the keeper
+            wallet's own nonce and balance never move. Confirm charges from the execution status,
+            not from the relayer's transaction list.
+          </p>
         </div>
-      </aside>
+      </Section>
+    </div>
+  )
+}
+
+function Section({
+  title,
+  blurb,
+  children,
+}: {
+  title: string
+  blurb?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        {blurb && <p className="text-sm text-foreground/45">{blurb}</p>}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function Code({ text, lang = "ts" }: { text: string; lang?: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const copy = () => {
+    void navigator.clipboard.writeText(text)
+    setCopied(true)
+    // Long enough to register, short enough that the button is ready again
+    // before anyone reaches for it a second time.
+    setTimeout(() => setCopied(false), 1600)
+  }
+
+  return (
+    <div className="relative group rounded-2xl border border-primary/15 bg-black/50 overflow-hidden">
+      <button
+        onClick={copy}
+        aria-label="Copy to clipboard"
+        className="absolute right-3 top-3 z-10 rounded-lg border border-primary/20 bg-black/70 p-2 text-foreground/40 opacity-0 transition-all group-hover:opacity-100 hover:text-primary focus-visible:opacity-100"
+      >
+        {copied ? <Check className="size-3.5 text-primary" /> : <Copy className="size-3.5" />}
+      </button>
+      <pre className="overflow-x-auto px-4 py-4 text-xs leading-relaxed">
+        <code className={`language-${lang} font-mono text-foreground/75`}>{text}</code>
+      </pre>
     </div>
   )
 }

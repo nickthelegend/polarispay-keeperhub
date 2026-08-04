@@ -3,13 +3,13 @@
 import { Shield } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useObolusWallet } from "@/lib/hooks/useObolusWallet"
+import { useAccount } from "wagmi"
 
 export function AppFooter() {
     const pathname = usePathname()
-    const { connected: authenticated } = useObolusWallet()
+    const { isConnected } = useAccount()
 
-    if (pathname === "/" && !authenticated) return null
+    if (pathname === "/" && !isConnected) return null
     return (
         <footer className="w-full flex flex-col md:flex-row justify-between items-center py-6 px-6 md:px-12 border-t border-white/5 gap-6 opacity-40 font-mono">
             <div className="flex items-center gap-8">
@@ -19,13 +19,12 @@ export function AppFooter() {
                 </div>
                 <div className="text-[10px] flex items-center gap-1 font-bold uppercase tracking-[0.2em]">
                     <Shield className="w-3 h-3" />
-                    VAULT_SECURE_C1
+                    SEPOLIA
                 </div>
             </div>
             <div className="flex gap-6">
-                <Link href="/support" className="hover:text-primary transition-colors text-[10px] font-bold uppercase tracking-widest">Support</Link>
-                <Link href="/terms" className="hover:text-primary transition-colors text-[10px] font-bold uppercase tracking-widest">Terms</Link>
-                <Link href="/privacy" className="hover:text-primary transition-colors text-[10px] font-bold uppercase tracking-widest">Privacy</Link>
+                <Link href="/docs" className="hover:text-primary transition-colors text-[10px] font-bold uppercase tracking-widest">Docs</Link>
+                <a href="https://sepolia.etherscan.io/address/0x5d6F049f791C40b09701129b3663d1A8ce9eAB86" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors text-[10px] font-bold uppercase tracking-widest">Contracts</a>
             </div>
         </footer>
     )

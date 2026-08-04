@@ -1,371 +1,371 @@
 "use client"
 
 import Link from "next/link"
-import { useState, useRef, useEffect } from "react"
+import useSWR from "swr"
+import { useAccount } from "wagmi"
 import {
-  Zap, History, ShieldCheck, TrendingUp, CreditCard, Target,
-  ChevronDown, Info, ArrowLeftRight, Check, Loader2,
+  ArrowUpRight,
+  CalendarClock,
+  CircleDollarSign,
+  Gauge,
+  Lock,
+  ShieldCheck,
+  Store,
+  TrendingUp,
+  Wallet,
 } from "lucide-react"
-import { TokenIcon } from "@/components/token-icon"
-import { useGlobalStats } from "@/hooks/use-global-stats"
-import { AMMSwapWidget } from "@/components/amm-swap-widget"
-import { useFhePrivateLending } from "@/hooks/use-fhe-private-lending"
-import { CONTRACTS } from "@/lib/contracts"
-import { formatUnits, parseUnits } from "viem"
-import { toast } from "sonner"
-import { Shield, Eye, Lock } from "lucide-react"
 
-const BORROW_ASSETS = [
-  { symbol: "USDC", color: "bg-blue-500" },
-  { symbol: "USDT", color: "bg-green-600" },
-  { symbol: "BNB",  color: "bg-yellow-500" },
-]
-const COLLATERAL_ASSETS = [
-  { symbol: "WETH", color: "bg-blue-400" },
-  { symbol: "WBTC", color: "bg-orange-500" },
-  { symbol: "BNB",  color: "bg-yellow-500" },
-]
-const TABS = ["Borrow", "Lend", "Swap"] as const
-type Tab = typeof TABS[number]
+import { ConnectWalletButton } from "@/components/wallet/connect-wallet-button"
 
-function TokenDropdown({ options, value, onChange }: {
-  options: { symbol: string; color: string }[]
-  value: string
-  onChange: (v: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const selected = options.find((o) => o.symbol === value) ?? options[0]
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
-  }, [])
+/**
+ * The borrower's home.
+ *
+ * This replaced a confidential-lending dashboard inherited from an earlier
+ * version of the project: encrypted-balance placeholders, a Fhenix FHEVM
+ * banner, and a health factor hardcoded to 185%, all pointed at contracts that
+ * are not deployed here. None of it could ever show a real number.
+ *
+ * Everything below comes from the deployed Sepolia contracts, through the
+ * endpoints that read them. When a figure is not available it says so rather
+ * than substituting a plausible-looking one.
+ */
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url)
+  if (!res.ok) {
+    throw new Error((await res.json().catch(() => ({}))).error ?? `Request failed (${res.status})`)
+  }
+  return res.json()
+}
+
+type Credit = {
+  score: number
+  scoreDelta: number
+  limitDisplay: string
+  availableDisplay: string
+  usedDisplay: string
+  onTimePayments: number
+  latePayments: number
+  nextDueAt: string | null
+  nextDueDisplay: string | null
+  plans: Array<{
+    loanId: string
+    orderId: string
+    merchantName: string
+    status: string
+    outstandingDisplay: string
+    installments: Array<{
+      index: number
+      dueAt: string
+      amountDisplay: string
+      state: string
+      transactionHash: string | null
+    }>
+  }>
+}
+
+type Limits = {
+  creditScore: number
+  currentLimit: string
+  baseLimit: string
+  collateralBoost: string
+  collateralLocked: string
+  available: string
+  activeLoans: number
+  repaidLoans: number
+}
+
+type Stats = {
+  totalOriginated: string
+  totalRepaid: string
+  outstanding: string
+  activeLoans: number
+  repaidLoans: number
+  liquidatedLoans: number
+  uniqueBorrowers: number
+  activeMerchants: number
+  collectionRate: number
+}
+
+export default function Home() {
+  const { address, isConnected } = useAccount()
+
+  const { data: stats } = useSWR<Stats>("/api/global-stats", fetcher, { refreshInterval: 30_000 })
+  const { data: credit, error: creditError } = useSWR<Credit>(
+    address ? `/api/credit/me?address=${address}` : null,
+    fetcher,
+    { refreshInterval: 20_000 }
+  )
+  const { data: limits } = useSWR<Limits>(
+    address ? `/api/limits?address=${address}` : null,
+    fetcher,
+    { refreshInterval: 20_000 }
+  )
+
   return (
-    <div ref={ref} className="relative flex-shrink-0">
-      <button type="button" onClick={() => setOpen(p => !p)}
-        className="flex items-center gap-2 bg-[#1a1d24] border border-border/40 hover:border-primary/40 rounded-xl px-3 py-2.5 transition-colors min-w-[110px]">
-        <TokenIcon symbol={selected.symbol} size={20} className="flex-shrink-0" />
-        <span className="text-sm font-semibold text-white">{selected.symbol}</span>
-        <ChevronDown size={13} className={`text-foreground/40 transition-transform ml-auto ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-[#0d0f14] border border-border/40 rounded-xl overflow-hidden shadow-2xl min-w-[130px]">
-          {options.map(opt => (
-            <button key={opt.symbol} type="button" onClick={() => { onChange(opt.symbol); setOpen(false) }}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-primary/10 transition-colors text-left">
-              <TokenIcon symbol={opt.symbol} size={20} className="flex-shrink-0" />
-              <span className="text-sm text-white">{opt.symbol}</span>
-              {opt.symbol === value && <Check size={12} className="text-primary ml-auto" />}
-            </button>
-          ))}
-        </div>
+    <div className="space-y-10 pt-6">
+      <header className="space-y-2">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Your credit</h1>
+        <p className="text-sm text-foreground/50 max-w-2xl">
+          Buy now, pay later on Sepolia. Instalments collect themselves — a keeper charges each one
+          when it comes due, with gas sponsored, so repaying costs you nothing.
+        </p>
+      </header>
+
+      {!isConnected ? (
+        <SignedOut stats={stats} />
+      ) : (
+        <>
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Stat
+              icon={<Gauge className="size-4" />}
+              label="Polaris score"
+              value={credit ? String(credit.score) : undefined}
+              hint={
+                credit && credit.scoreDelta > 0
+                  ? `+${credit.scoreDelta} from on-time repayment`
+                  : "Repay on time to build it"
+              }
+            />
+            <Stat
+              icon={<CircleDollarSign className="size-4" />}
+              label="Credit limit"
+              value={credit?.limitDisplay}
+              hint={
+                limits && Number(limits.collateralBoost) > 0
+                  ? `${limits.baseLimit} base + ${limits.collateralBoost} from collateral`
+                  : "Lock collateral to raise it"
+              }
+            />
+            <Stat
+              icon={<Wallet className="size-4" />}
+              label="Available to spend"
+              value={credit?.availableDisplay}
+              hint={credit ? `${credit.usedDisplay} in use` : undefined}
+            />
+            <Stat
+              icon={<CalendarClock className="size-4" />}
+              label="Next payment"
+              value={credit?.nextDueDisplay ?? (credit ? "None due" : undefined)}
+              hint={credit?.nextDueAt ? relative(credit.nextDueAt) : "Nothing scheduled"}
+            />
+          </section>
+
+          {creditError && (
+            <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              Could not read your credit from the chain: {creditError.message}
+            </p>
+          )}
+
+          {limits && Number(limits.collateralLocked) > 0 && (
+            <section className="rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 flex items-center gap-3">
+              <Lock className="size-4 text-primary shrink-0" />
+              <p className="text-sm text-foreground/70">
+                <span className="font-semibold text-foreground">{limits.collateralLocked}</span>{" "}
+                locked as collateral, raising your limit by{" "}
+                <span className="font-semibold text-foreground">{limits.collateralBoost}</span>. It
+                unlocks once every plan is closed.
+              </p>
+            </section>
+          )}
+
+          <Plans plans={credit?.plans} loading={!credit && !creditError} />
+        </>
       )}
+
+      <ProtocolStats stats={stats} />
     </div>
   )
 }
 
-function PrivateActionWidget() {
-  const [tab, setTab] = useState<Tab>("Borrow")
-  const [borrowAmount, setBorrowAmount] = useState("")
-  const [collateralAmount, setCollateralAmount] = useState("")
-  const [borrowAsset, setBorrowAsset] = useState("USDC")
-  const [collateralAsset, setCollateralAsset] = useState("WETH")
-  const [lendAmount, setLendAmount] = useState("")
-  const [lendAsset, setLendAsset] = useState("USDC")
-
-  const { supply, borrow, loading } = useFhePrivateLending()
-
-    const handleBorrow = async () => {
-        if (!borrowAmount) return
-        const { TOKENS } = await import("@/config/tokens")
-        try {
-            const token = TOKENS[borrowAsset]
-            const decimals = token?.decimals || 18
-            const amount = parseUnits(borrowAmount, decimals)
-            const tokenAddr = (CONTRACTS.MASTER as any)[borrowAsset] || borrowAsset
-            await borrow(amount, tokenAddr)
-            toast.success(`Confidential borrow of ${borrowAmount} ${borrowAsset} initiated`)
-        } catch (err: any) {
-            toast.error(err.message || "Borrow failed")
-        }
-    }
-
-    const handleLend = async () => {
-        if (!lendAmount) return
-        const { TOKENS } = await import("@/config/tokens")
-        try {
-            const token = TOKENS[lendAsset]
-            const decimals = token?.decimals || 18
-            const amount = parseUnits(lendAmount, decimals)
-            // Use the token address from CONTRACTS.MASTER or SPOKES
-            const tokenAddr = (CONTRACTS.MASTER as any)[lendAsset] || lendAsset
-            await supply(amount, tokenAddr)
-            toast.success(`Confidential supply of ${lendAmount} ${lendAsset} initiated`)
-        } catch (err: any) {
-            toast.error(err.message || "Supply failed")
-        }
-    }
-
+function SignedOut({ stats }: { stats?: Stats }) {
   return (
-    <div className="bg-[#0d0f14] border border-border/30 rounded-3xl overflow-hidden">
-      <div className="flex items-center gap-1 p-2 bg-[#05080f]/60 border-b border-border/20">
-        {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 py-2 rounded-2xl text-sm font-semibold transition-all ${tab === t ? "bg-[#1a1d24] text-white shadow border border-border/30" : "text-foreground/40 hover:text-foreground/70"}`}>
-            {t}
-          </button>
-        ))}
+    <section className="rounded-2xl border border-primary/20 bg-[#05080f]/60 px-6 py-10 text-center space-y-5">
+      <ShieldCheck className="size-8 text-primary mx-auto" />
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold">Connect a wallet to see your credit</h2>
+        <p className="text-sm text-foreground/50 max-w-md mx-auto">
+          Your limit is underwritten from your own chain history — no application, no credit
+          bureau. A new wallet starts at a 500 baseline and earns its way up.
+        </p>
       </div>
-      <div className="p-6 space-y-4">
-        {tab === "Borrow" && (
-          <>
-            <div>
-              <h3 className="text-lg font-bold text-white">Borrow with Privacy</h3>
-              <p className="text-xs text-foreground/40 mt-1 leading-relaxed">Submit a private borrow intent. Your request is encrypted with fully homomorphic encryption (fhenix fheVM).</p>
-            </div>
-            <div className="bg-[#05080f]/60 border border-border/20 rounded-2xl p-4 space-y-2">
-              <label className="text-xs text-foreground/40">{"You're borrowing"}</label>
-              <div className="flex items-center gap-3">
-                <input type="number" value={borrowAmount} onChange={e => setBorrowAmount(e.target.value)} placeholder="0" className="flex-1 bg-transparent text-3xl font-light text-foreground/60 placeholder:text-foreground/20 focus:outline-none min-w-0" />
-                <TokenDropdown options={BORROW_ASSETS} value={borrowAsset} onChange={setBorrowAsset} />
-              </div>
-            </div>
-            <div className="bg-[#05080f]/60 border border-border/20 rounded-2xl p-4 space-y-2">
-              <label className="text-xs text-foreground/40">Collateral ({collateralAsset})</label>
-              <div className="flex items-center gap-3">
-                <input type="number" value={collateralAmount} onChange={e => setCollateralAmount(e.target.value)} placeholder="0" className="flex-1 bg-transparent text-3xl font-light text-foreground/60 placeholder:text-foreground/20 focus:outline-none min-w-0" />
-                <TokenDropdown options={COLLATERAL_ASSETS} value={collateralAsset} onChange={setCollateralAsset} />
-              </div>
-            </div>
-            <div className="flex items-center gap-2 bg-[#05080f]/40 border border-border/20 rounded-xl px-4 py-3">
-              <Info size={14} className="text-foreground/30 flex-shrink-0" />
-              <span className="text-xs text-foreground/40">Your collateral data is encrypted and hidden from the server</span>
-            </div>
-            <button 
-              onClick={handleBorrow}
-              disabled={loading || !borrowAmount}
-              className="w-full py-4 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading && <Loader2 className="animate-spin" size={16} />}
-              Submit Borrow Intent
-            </button>
-          </>
-        )}
-        {tab === "Lend" && (
-          <>
-            <div>
-              <h3 className="text-lg font-bold text-white">Lend with Privacy</h3>
-              <p className="text-xs text-foreground/40 mt-1 leading-relaxed">Supply liquidity privately. Your supply intent is matched securely via fhenix fheVM.</p>
-            </div>
-            <div className="bg-[#05080f]/60 border border-border/20 rounded-2xl p-4 space-y-2">
-              <label className="text-xs text-foreground/40">{"You're lending"}</label>
-              <div className="flex items-center gap-3">
-                <input type="number" value={lendAmount} onChange={e => setLendAmount(e.target.value)} placeholder="0" className="flex-1 bg-transparent text-3xl font-light text-foreground/60 placeholder:text-foreground/20 focus:outline-none min-w-0" />
-                <TokenDropdown options={BORROW_ASSETS} value={lendAsset} onChange={setLendAsset} />
-              </div>
-            </div>
-            <div className="flex items-center gap-2 bg-[#05080f]/40 border border-border/20 rounded-xl px-4 py-3">
-              <Info size={14} className="text-foreground/30 flex-shrink-0" />
-              <span className="text-xs text-foreground/40">Your lending signals are encrypted and hidden from the server</span>
-            </div>
-            <button 
-              onClick={handleLend}
-              disabled={loading || !lendAmount}
-              className="w-full py-4 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading && <Loader2 className="animate-spin" size={16} />}
-              Submit Lend Intent
-            </button>
-          </>
-        )}
-        {tab === "Swap" && <AMMSwapWidget />}
+      <div className="flex justify-center">
+        <ConnectWalletButton />
       </div>
-    </div>
+      {stats && (
+        <p className="text-xs text-foreground/40 pt-2">
+          {stats.uniqueBorrowers} borrower{stats.uniqueBorrowers === 1 ? "" : "s"} ·{" "}
+          {stats.totalOriginated} originated · {stats.collectionRate.toFixed(0)}% collected on time
+        </p>
+      )}
+    </section>
   )
 }
 
-export default function Page() {
-  const { stats: globalStats, loading: statsLoading, error: statsError } = useGlobalStats()
+function Plans({ plans, loading }: { plans?: Credit["plans"]; loading: boolean }) {
+  if (loading) {
+    return (
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-foreground/40">Plans</h2>
+        <div className="h-24 rounded-2xl border border-primary/10 bg-primary/[0.02] animate-pulse" />
+      </section>
+    )
+  }
 
-  const fmt = (val: number | undefined, suffix = "") =>
-    statsLoading || statsError || val === undefined ? "—" : `${val}${suffix}`
-
-  const { 
-    decryptAllPositions, 
-    suppliedBalance, 
-    debtBalance, 
-    creditScore,
-    creditLimit,
-    loading: fheLoading 
-  } = useFhePrivateLending()
-
-  const [hasDecrypted, setHasDecrypted] = useState(false)
-
-    const handleDecrypt = async () => {
-        try {
-            toast.info("Requesting secure decryption via EIP-712...")
-            // Default to USDC for home page overview
-            const tokenAddr = CONTRACTS.MASTER.USDC || ""
-            await decryptAllPositions(tokenAddr)
-            setHasDecrypted(true)
-            toast.success("Confidential positions revealed")
-        } catch (err) {
-            console.error("Decryption failed:", err)
-            toast.error("Decryption failed - please try again")
-        }
-    }
-
-  const statCards = [
-    {
-      tag: "SUPPLY",
-      asset: "USDC",
-      sub: fmt(globalStats?.avgSupplyApy !== undefined ? +globalStats.avgSupplyApy.toFixed(1) : undefined, "% Avg APY"),
-      icon: TrendingUp,
-    },
-    {
-      tag: "BORROW",
-      asset: "WETH",
-      sub: "2.1% Avg APY",
-      icon: Zap,
-    },
-    {
-      tag: "ASSETS",
-      asset: "TOTAL",
-      sub: statsLoading || statsError || globalStats?.activePools === undefined
-        ? "— Configured"
-        : `${globalStats.activePools} Configured`,
-      icon: Target,
-    },
-  ]
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 font-mono">
-      <div className="lg:col-span-7 space-y-8">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h2 className="text-xl font-bold tracking-tight text-foreground">Confidential Asset Overview</h2>
-            <p className="text-xs text-foreground/40 uppercase tracking-widest">Secured by Fhenix FHEVM // Sepolia Network</p>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-[10px] text-primary font-bold tracking-wider uppercase backdrop-blur-md">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            Shield_Active
-          </div>
-        </div>
-        <div className="relative group overflow-hidden bg-[#05080f]/50 border border-primary/20 rounded-3xl p-8 backdrop-blur-xl">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Shield size={120} />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
-            <div className="space-y-6">
-              <div>
-                <div className="text-[10px] text-foreground/40 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
-                  <CreditCard size={12} className="text-primary" />Total_Supplied_(Encrypted)
-                </div>
-                <div className="text-5xl font-black tracking-tighter text-foreground font-mono">
-                  {hasDecrypted && suppliedBalance !== null ? `$${formatUnits(suppliedBalance, 6)}` : "••••••••"}
-                </div>
-                <p className="text-[10px] text-foreground/20 italic mt-2">*Only you can decrypt your position data.</p>
-              </div>
-              <div>
-                <div className="text-[10px] text-foreground/40 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
-                  <History size={12} className="text-primary" />Total_Borrowed_(Encrypted)
-                </div>
-                <div className="text-3xl font-bold tracking-tight text-white/50">
-                  {hasDecrypted && debtBalance !== null ? `$${formatUnits(debtBalance, 6)}` : "••••••••"}
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] text-foreground/40 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
-                  <Target size={12} className="text-primary" />Credit_Score_(Private)
-                </div>
-                <div className="text-3xl font-bold tracking-tighter text-purple-400">
-                  {hasDecrypted && creditScore !== null ? creditScore : "•••"}
-                  <span className="text-[10px] text-foreground/20 ml-2">/ 850</span>
-                </div>
-                {hasDecrypted && creditLimit !== null && (
-                  <p className="text-[10px] text-purple-400/60 uppercase tracking-widest mt-1">Limit: ${(Number(creditLimit)/1e6).toFixed(0)} USDC</p>
-                )}
-              </div>
-
-              {!hasDecrypted && (
-                <button 
-                  onClick={handleDecrypt}
-                  disabled={fheLoading}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/30 rounded-xl text-[10px] font-bold text-primary hover:bg-primary/20 transition-all disabled:opacity-50"
-                >
-                  {fheLoading ? <Loader2 className="animate-spin" size={12} /> : <Eye size={12} />}
-                  DECRYPT_POSITIONS
-                </button>
-              )}
-            </div>
-            <div className="flex flex-col justify-between space-y-8">
-              <div className="bg-secondary/20 border border-border/40 rounded-2xl p-6 space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-foreground/50 uppercase tracking-widest">Health_Factor</span>
-                  <span className="text-sm font-black text-primary px-2 py-0.5 rounded border border-primary/30">
-                    {hasDecrypted ? "Safe (1.85)" : "Safe"}
-                  </span>
-                </div>
-                <div className="h-2 bg-secondary/50 rounded-full overflow-hidden border border-border/10">
-                  <div className="h-full w-[85%] bg-primary" />
-                </div>
-                <div className="flex justify-between text-[10px] text-foreground/30 uppercase">
-                  <span>Threshold: 150%</span><span>Current: 185%</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-background/40 border border-border/30 rounded-xl">
-                  <div className="text-[9px] text-foreground/40 uppercase mb-1">Net APR</div>
-                  <div className="text-sm font-bold text-green-400">+5.24%</div>
-                </div>
-                <div className="p-4 bg-background/40 border border-border/30 rounded-xl">
-                  <div className="text-[9px] text-foreground/40 uppercase mb-1">Borrow Power</div>
-                  <div className="text-sm font-bold text-primary">High</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {statCards.map((item, i) => (
-            <div key={i} className="bg-card/30 border border-border/50 rounded-2xl p-6 hover:bg-card/50 transition-colors cursor-pointer group">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary"><item.icon size={18} /></div>
-                <div className="text-[9px] font-bold text-foreground/30 uppercase tracking-widest">{item.tag}</div>
-              </div>
-              <div className="text-lg font-bold">{item.asset}</div>
-              <div className="text-xs text-foreground/50 mt-1">{item.sub}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="lg:col-span-5 space-y-6">
-        <PrivateActionWidget />
-        <div className="bg-[#05080f]/40 border border-border/40 rounded-3xl p-8 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-foreground/40 italic">Recent_Chain_Logs</h3>
-            <div className="flex items-center gap-2">
-              <span className="text-[8px] text-foreground/30 uppercase">LIVE</span>
-              <div className="w-1 h-1 rounded-full bg-primary" />
-            </div>
-          </div>
-          <div className="space-y-8">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="flex gap-4 border-l-2 border-primary/20 pl-4 py-1 hover:border-primary transition-colors cursor-default">
-                <div className="space-y-1">
-                  <div className="text-[10px] font-mono text-primary/80 tracking-tighter">TX_REDACTED_HASH_{i}4FC9</div>
-                  <div className="text-xs font-medium text-foreground/80 leading-snug">Decrypted call to <span className="text-primary/70">supply()</span></div>
-                  <div className="text-[9px] text-foreground/30 uppercase mt-1">Confirmed // 2.4s ago</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <Link href="/transactions" className="mt-10 block text-center text-[10px] font-bold uppercase tracking-[0.3em] text-foreground/40 hover:text-primary transition-colors">
-            View All Confidential Logs
+  if (!plans || plans.length === 0) {
+    return (
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-foreground/40">Plans</h2>
+        <div className="rounded-2xl border border-primary/10 px-5 py-8 text-center space-y-3">
+          <Store className="size-6 text-foreground/30 mx-auto" />
+          <p className="text-sm text-foreground/50">
+            No plans yet. Buy something at a Polaris merchant and split it into four.
+          </p>
+          <Link
+            href="/merchants"
+            className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+          >
+            Browse merchants <ArrowUpRight className="size-3.5" />
           </Link>
         </div>
+      </section>
+    )
+  }
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-sm font-semibold uppercase tracking-widest text-foreground/40">Plans</h2>
+      <div className="space-y-3">
+        {plans.map((p) => (
+          <article
+            key={p.loanId}
+            className="rounded-2xl border border-primary/15 bg-[#05080f]/40 p-5 space-y-4"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold">{p.merchantName}</p>
+                <p className="text-xs text-foreground/40 font-mono">{p.orderId}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-semibold tabular-nums">{p.outstandingDisplay}</p>
+                <p className="text-xs text-foreground/40">outstanding</p>
+              </div>
+            </div>
+
+            {/* One tile per instalment: the schedule at a glance, showing the
+                state the keeper actually recorded rather than a progress bar
+                that implies more certainty than the book has. */}
+            <div className="flex flex-wrap gap-2">
+              {p.installments.map((i) => (
+                <InstalmentPip key={i.index} inst={i} />
+              ))}
+            </div>
+          </article>
+        ))}
       </div>
+    </section>
+  )
+}
+
+const PIP: Record<string, { ring: string; label: string }> = {
+  paid: { ring: "border-primary bg-primary/20 text-primary", label: "Paid" },
+  dunning: { ring: "border-amber-500 bg-amber-500/10 text-amber-400", label: "Retrying" },
+  failed: { ring: "border-destructive bg-destructive/10 text-destructive", label: "Failed" },
+  scheduled: { ring: "border-foreground/20 text-foreground/50", label: "Scheduled" },
+}
+
+function InstalmentPip({ inst }: { inst: Credit["plans"][number]["installments"][number] }) {
+  const style = PIP[inst.state] ?? PIP.scheduled!
+  const body = (
+    <div className={`rounded-xl border px-3 py-2 text-xs ${style.ring}`}>
+      <p className="font-semibold tabular-nums">{inst.amountDisplay}</p>
+      <p className="opacity-70">
+        {style.label} · {new Date(inst.dueAt).toLocaleDateString()}
+      </p>
     </div>
   )
+  // A collected instalment has a transaction behind it, so it should be
+  // possible to go and check -- that is the whole claim the product makes.
+  return inst.transactionHash ? (
+    <a
+      href={`https://sepolia.etherscan.io/tx/${inst.transactionHash}`}
+      target="_blank"
+      rel="noreferrer"
+      className="hover:opacity-80 transition-opacity"
+    >
+      {body}
+    </a>
+  ) : (
+    body
+  )
+}
+
+function ProtocolStats({ stats }: { stats?: Stats }) {
+  return (
+    <section className="space-y-3 border-t border-primary/10 pt-8">
+      <h2 className="text-sm font-semibold uppercase tracking-widest text-foreground/40">Protocol</h2>
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <Stat
+          icon={<TrendingUp className="size-4" />}
+          label="Originated"
+          value={stats?.totalOriginated}
+        />
+        <Stat
+          icon={<CircleDollarSign className="size-4" />}
+          label="Repaid"
+          value={stats?.totalRepaid}
+        />
+        <Stat icon={<Wallet className="size-4" />} label="Outstanding" value={stats?.outstanding} />
+        <Stat
+          icon={<ShieldCheck className="size-4" />}
+          label="Collected on time"
+          value={stats ? `${stats.collectionRate.toFixed(0)}%` : undefined}
+          hint={stats ? `${stats.liquidatedLoans} liquidated` : undefined}
+        />
+      </div>
+    </section>
+  )
+}
+
+function Stat({
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: React.ReactNode
+  label: string
+  value?: string
+  hint?: string
+}) {
+  return (
+    <div className="rounded-2xl border border-primary/15 bg-[#05080f]/40 px-4 py-4 space-y-1.5">
+      <div className="flex items-center gap-2 text-foreground/40">
+        {icon}
+        <span className="text-[11px] uppercase tracking-widest">{label}</span>
+      </div>
+      {value === undefined ? (
+        <div className="h-7 w-24 rounded bg-primary/10 animate-pulse" />
+      ) : (
+        <p className="text-xl font-semibold tabular-nums">{value}</p>
+      )}
+      {hint && <p className="text-[11px] text-foreground/35">{hint}</p>}
+    </div>
+  )
+}
+
+/** "in 3 days" / "2 hours ago", so a due date reads as urgency rather than arithmetic. */
+function relative(iso: string): string {
+  const ms = new Date(iso).getTime() - Date.now()
+  const abs = Math.abs(ms)
+  const units: Array<[number, Intl.RelativeTimeFormatUnit]> = [
+    [86_400_000, "day"],
+    [3_600_000, "hour"],
+    [60_000, "minute"],
+  ]
+  const fmt = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" })
+  for (const [size, unit] of units) {
+    if (abs >= size) return fmt.format(Math.round(ms / size), unit)
+  }
+  return "now"
 }

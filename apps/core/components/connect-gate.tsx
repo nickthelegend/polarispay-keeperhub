@@ -2,10 +2,10 @@
 
 import type React from "react"
 import { ConnectWalletButton } from "@/components/wallet/connect-wallet-button"
-import { useObolusWallet } from "@/lib/hooks/useObolusWallet"
+import { useAccount } from "wagmi"
 
 export function ConnectGate({ children }: { children: React.ReactNode }) {
-  const { connected: authenticated, connecting } = useObolusWallet()
+  const { isConnected: authenticated, isConnecting: connecting } = useAccount()
 
   if (connecting) {
     return (

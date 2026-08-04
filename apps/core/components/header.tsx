@@ -3,23 +3,19 @@
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { useState } from "react"
-import { SidebarDrawer } from "./sidebar-drawer"
 import { cn } from "@/lib/utils"
 import { ConnectWalletButton } from "@/components/wallet/connect-wallet-button"
 
 const NAV = [
-  { href: "/pools", label: "Pools" },
-  { href: "/borrow", label: "Borrow" },
-  { href: "/credit", label: "Credit" },
-  { href: "/positions", label: "Positions" },
-  { href: "/transactions", label: "Activity" },
+  { href: "/", label: "Credit" },
+  { href: "/limits", label: "Limits" },
+  { href: "/merchants", label: "Merchants" },
   { href: "/faucet", label: "Faucet" },
+  { href: "/docs", label: "Docs" },
 ]
 
 export function AppHeader() {
   const pathname = usePathname()
-  const [open, setOpen] = useState(false)
 
   return (
     <header className="sticky top-0 z-40 w-full pt-3 pb-2 ">
@@ -30,7 +26,6 @@ export function AppHeader() {
       >
         {/* Left: menu icon + logo */}
         <div className="flex items-center gap-2">
-          <SidebarDrawer open={open} onOpenChange={setOpen} />
           <Link href="/" className="font-semibold tracking-wide">
             <span className="inline-flex items-center gap-2">
               <Image src="/logo.png" alt="Logo" width={120} height={32} className="h-8 w-auto max-h-8" />

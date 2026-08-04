@@ -16,8 +16,8 @@ export const viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "Polaris | Confidential Lending",
-  description: "Polaris Protocol: Next-generation confidential lending on Sepolia powered by Fhenix FHE.",
+  title: "PolarisPay | Buy now, pay later on-chain",
+  description: "Split any checkout into four. Your limit is underwritten from your own chain history, and instalments collect themselves.",
   keywords: "Sepolia, Fhenix, FHE, Confidential Lending, Privacy, DeFi",
   authors: [{ name: "Polaris Team" }],
   creator: "Polaris",
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="dark h-full">
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
