@@ -83,9 +83,17 @@ export async function GET(request: Request): Promise<NextResponse> {
       lastUpdated: new Date().toISOString(),
     });
   } catch (err) {
-    // A failed chain read is reported, never papered over with a default.
+    // A failed read is reported, never papered over with a default -- but the
+    // driver's own message is not the thing to report. It names our cluster
+    // host and DNS records, which tells a borrower nothing they can act on and
+    // tells everyone else more than they should know. The detail goes to the
+    // server log; the caller gets the fact and a next step.
+    console.error("[GET /api/limits] read failed", err);
     return NextResponse.json(
-      { error: `Could not read credit state: ${(err as Error).message}` },
+      {
+        error:
+          "Could not read your credit right now. This is on our side -- try again in a moment.",
+      },
       { status: 502 }
     );
   }

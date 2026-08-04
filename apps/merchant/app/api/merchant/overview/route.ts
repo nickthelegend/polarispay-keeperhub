@@ -108,8 +108,10 @@ export async function GET(request: Request): Promise<NextResponse> {
       plans,
     });
   } catch (err) {
+    // The driver message names our infrastructure; it belongs in the log.
+    console.error("[GET /api/merchant/overview] read failed", err);
     return NextResponse.json(
-      { error: (err as Error).message ?? "Failed to load merchant overview" },
+      { error: "Could not load your ledger right now. This is on our side -- try again in a moment." },
       { status: 500 }
     );
   }

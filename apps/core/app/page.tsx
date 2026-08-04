@@ -121,11 +121,20 @@ export default function Home() {
  */
 function Balance({ credit, error }: { credit?: Credit; error?: Error }) {
   if (error) {
+    // Not "from the chain": this fails when our own read fails, and naming the
+    // wrong system sends a borrower to check Sepolia when Sepolia is fine.
     return (
       <section className="mb-14">
-        <p className="surface border-destructive/30 px-5 py-4 text-sm text-destructive">
-          Could not read your credit from the chain. {error.message}
-        </p>
+        <div className="surface border-amber-500/25 px-6 py-5">
+          <p className="text-sm font-medium text-amber-300">Your credit is not loading</p>
+          <p className="mt-1.5 max-w-[60ch] text-sm leading-relaxed text-foreground/55">
+            {error.message}
+          </p>
+          <p className="mt-3 text-xs text-foreground/40">
+            Nothing is wrong with your plans or your balance -- they live on chain and are
+            unaffected. This page will pick them up as soon as the read succeeds.
+          </p>
+        </div>
       </section>
     )
   }

@@ -114,8 +114,14 @@ export async function GET(request: Request): Promise<NextResponse> {
       plans,
     });
   } catch (err) {
+    // Same reasoning as /api/limits: the driver message names infrastructure,
+    // so it is logged rather than returned.
+    console.error("[GET /api/credit/me] read failed", err);
     return NextResponse.json(
-      { error: (err as Error).message ?? "Failed to load credit profile" },
+      {
+        error:
+          "Could not load your plans right now. This is on our side -- try again in a moment.",
+      },
       { status: 500 }
     );
   }

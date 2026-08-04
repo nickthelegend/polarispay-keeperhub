@@ -17,6 +17,8 @@ export async function GET(): Promise<NextResponse> {
     }
     return NextResponse.json({ address: m.payoutAddress, name: m.name, merchantId: m.merchantId });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    // The driver message names our infrastructure; it belongs in the log.
+    console.error("[GET /api/merchant/address] read failed", err);
+    return NextResponse.json({ error: "Could not read the merchant address." }, { status: 500 });
   }
 }

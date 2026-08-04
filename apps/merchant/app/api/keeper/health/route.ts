@@ -17,8 +17,10 @@ export async function GET(): Promise<NextResponse> {
     const report = await healthReport(Number(process.env.CHAIN_ID ?? 11_155_111));
     return NextResponse.json(report);
   } catch (err) {
+    // The driver message names our infrastructure; it belongs in the log.
+    console.error("[GET /api/keeper/health] read failed", err);
     return NextResponse.json(
-      { error: (err as Error).message ?? "Could not read keeper health" },
+      { error: "Could not read keeper health right now." },
       { status: 500 }
     );
   }
