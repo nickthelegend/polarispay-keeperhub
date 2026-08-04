@@ -16,6 +16,7 @@ export type MerchantStatus = "pending" | "active" | "suspended";
 /** Mirrors the keeper's Receipt discriminants so the two stay in step. */
 export type ReceiptKind =
   | "installment_charge"
+  | "subscription_charge"
   | "liquidation"
   | "merchant_settlement"
   | "score_update";
@@ -82,6 +83,7 @@ export type ReceiptDoc = {
   outcome: ReceiptOutcome;
   loanId?: string;
   installment?: number;
+  subscriptionId?: string;
   merchantId?: string;
   amount?: string;
   chainId: number;

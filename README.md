@@ -82,6 +82,10 @@ Run a pass without sending anything (`KEEPER_DRY_RUN=true`):
 pnpm keeper:collect
 ```
 
+The other jobs run the same way — `pnpm keeper:subscriptions` charges every
+subscription period that is due, `pnpm keeper:liquidate` tests loans the book
+has flagged, `pnpm keeper:settle` pays merchants.
+
 Run the full loop:
 
 ```bash

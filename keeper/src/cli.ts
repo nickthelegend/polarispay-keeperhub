@@ -3,6 +3,7 @@
  * PolarisPay keeper CLI.
  *
  *   pnpm keeper:collect      collect every installment that is due
+ *   pnpm keeper:subscriptions charge every subscription period that is due
  *   pnpm keeper:liquidate    liquidate loans the protocol says are unhealthy
  *   pnpm keeper:settle       pay merchants
  *   pnpm keeper:all          run all three on a loop
@@ -20,6 +21,7 @@ import {
 import {
   closeDb,
   deliverWebhook,
+  type KeeperJob,
   markSettled,
   MongoLoanBook,
   MongoReceiptStore,
@@ -37,9 +39,11 @@ import {
   runCollection,
   runLiquidation,
   runSettlement,
+  runSubscriptions,
   summarize,
   type JobResult,
 } from "./jobs.ts";
+import { activeSubscriptions, jsonRpc } from "./subscriptions.ts";
 
 const LOAN_BOOK_PATH = resolve(
   process.env.POLARIS_LOAN_BOOK ?? "keeper/data/loanbook.json"
@@ -88,7 +92,7 @@ function build() {
   const { book, receipts, backend } = storage();
   const keeper = new PolarisKeeper(
     client,
-    { chainId: config.chainId, loanEngine: config.loanEngine },
+    { chainId: config.chainId, loanEngine: config.loanEngine, payments: config.payments },
     receipts
   );
   return { config, client, keeper, book, receipts, backend };
@@ -102,6 +106,7 @@ async function doctor(): Promise<void> {
   console.log(`  Chain:          ${config.chainId}`);
   console.log(`  LoanEngine:     ${config.loanEngine}`);
   console.log(`  Merchant escrow:${config.merchantEscrow ?? " (unset)"}`);
+  console.log(`  Payments:       ${config.payments ?? "(unset -- subscriptions will be skipped)"}`);
   console.log(`  Store:          ${backend}${backend === "file" ? ` (${LOAN_BOOK_PATH})` : ""}`);
   console.log(`  Dry run:        ${config.dryRun}`);
   console.log(`  Gas:            ${sponsorshipNote(config.chainId)}`);
@@ -130,6 +135,18 @@ async function collect(): Promise<JobResult> {
     dryRun: config.dryRun,
     notify: (m) => console.log(`  notify borrower: ${m}`),
   });
+}
+
+async function subscriptions(): Promise<JobResult> {
+  const { keeper, config } = build();
+
+  if (!config.payments) {
+    console.log("POLARIS_PAYMENTS is not set; nothing to charge.");
+    return { job: "subscriptions", considered: 0, acted: 0, succeeded: 0, failed: 0, skipped: 0, receipts: [] };
+  }
+
+  const active = await activeSubscriptions(config.payments, jsonRpc(config.rpcUrl));
+  return await runSubscriptions({ keeper, subscriptions: active, dryRun: config.dryRun });
 }
 
 async function liquidate(): Promise<JobResult> {
@@ -180,6 +197,7 @@ async function loop(): Promise<void> {
     try {
       const results = [
         await withHeartbeat("collection", collect),
+        await withHeartbeat("subscriptions", subscriptions),
         await withHeartbeat("liquidation", liquidate),
         await withHeartbeat("settlement", settle),
       ];
@@ -220,7 +238,7 @@ function reportError(err: unknown): void {
  * has stopped is visible as silence rather than being invisible.
  */
 async function withHeartbeat(
-  job: "collection" | "liquidation" | "settlement",
+  job: KeeperJob,
   fn: () => Promise<JobResult>
 ): Promise<JobResult> {
   const started = Date.now();
@@ -248,6 +266,7 @@ const COMMANDS: Record<string, () => Promise<unknown>> = {
   doctor,
   health,
   collect: () => withHeartbeat("collection", collect),
+  subscriptions: () => withHeartbeat("subscriptions", subscriptions),
   liquidate: () => withHeartbeat("liquidation", liquidate),
   settle: () => withHeartbeat("settlement", settle),
   run: loop,

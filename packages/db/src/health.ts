@@ -15,7 +15,7 @@
 import { collections } from "./client.js";
 import { formatUnits } from "./loanbook.js";
 
-export type KeeperJob = "collection" | "liquidation" | "settlement";
+export type KeeperJob = "collection" | "subscriptions" | "liquidation" | "settlement";
 
 export type Heartbeat = {
   job: KeeperJob;
@@ -58,6 +58,10 @@ export type HealthReport = {
  */
 export const STALE_AFTER_MINUTES: Record<KeeperJob, number> = {
   collection: 90,
+  // Subscription periods are days or months, so silence here is far less
+  // urgent than a missed instalment -- but a keeper that has not looked all
+  // day is still a keeper that has stopped.
+  subscriptions: 720,
   liquidation: 180,
   settlement: 360,
 };
@@ -89,7 +93,7 @@ export async function healthReport(chainId: number): Promise<HealthReport> {
   const incidents: string[] = [];
 
   const jobs = await Promise.all(
-    (["collection", "liquidation", "settlement"] as KeeperJob[]).map(async (job) => {
+    (["collection", "subscriptions", "liquidation", "settlement"] as KeeperJob[]).map(async (job) => {
       const last = await events
         .find({ type: `keeper.heartbeat.${job}` })
         .sort({ createdAt: -1 })

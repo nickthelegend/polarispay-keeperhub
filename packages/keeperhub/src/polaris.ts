@@ -79,11 +79,30 @@ export const MERCHANT_ESCROW_ABI = JSON.stringify([
   },
 ]);
 
+/** `PolarisPayments` -- the subscription entry points the keeper calls. */
+export const PAYMENTS_ABI = JSON.stringify([
+  {
+    type: "function",
+    name: "isChargeDue",
+    stateMutability: "view",
+    inputs: [{ name: "subId", type: "uint256" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "chargeDue",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "subId", type: "uint256" }],
+    outputs: [],
+  },
+]);
+
 export type PolarisDeployment = {
   chainId: ChainId | number;
   loanEngine: string;
   scoreManager?: string;
   poolManager?: string;
+  payments?: string;
 };
 
 export type CollectInstallmentParams = {
@@ -99,6 +118,13 @@ export type CollectInstallmentParams = {
 
 export type LiquidateParams = {
   loanId: string;
+  attempt?: number;
+};
+
+export type ChargeSubscriptionParams = {
+  subscriptionId: string;
+  /** Human-readable amount, for receipts only. */
+  amountDisplay?: string;
   attempt?: number;
 };
 
@@ -210,6 +236,81 @@ export class PolarisKeeper {
       if (!("executionId" in result)) {
         // Healthy loan. This is the overwhelmingly common path and is a
         // success, not a failure -- record it so the run log shows coverage.
+        const receipt: Receipt = {
+          ...base,
+          outcome: "skipped",
+          createdAt: new Date().toISOString(),
+        };
+        await this.receipts.put(receipt);
+        return receipt;
+      }
+
+      const status = await this.kh.waitForTerminal(result.executionId);
+      const receipt = receiptFromStatus(base, status);
+      await this.receipts.put(receipt);
+      return receipt;
+    } catch (err) {
+      const receipt = failureReceipt(base, err);
+      await this.receipts.put(receipt);
+      return receipt;
+    }
+  }
+
+  /**
+   * Collect one subscription period.
+   *
+   * Check-and-execute rather than simulate-then-send, because `chargeDue`
+   * reverts with NotDue right up until the period boundary and the boundary
+   * moves under us: another keeper -- the entry point is permissionless -- or
+   * the subscriber cancelling between our read and our write. Asking the chain
+   * `isChargeDue` and acting on the answer inside one call closes that window,
+   * and a subscription that is not due costs nothing and sends nothing.
+   */
+  async chargeSubscription(params: ChargeSubscriptionParams): Promise<Receipt> {
+    const attempt = params.attempt ?? 1;
+    const actionId = `subscription-${params.subscriptionId}-charge`;
+    const payments = this.deployment.payments;
+
+    const base = {
+      actionId,
+      kind: "subscription_charge" as const,
+      subscriptionId: params.subscriptionId,
+      amount: params.amountDisplay,
+      chainId: Number(this.deployment.chainId),
+      attempt,
+    };
+
+    if (!payments) {
+      return failureReceipt(
+        base,
+        new Error(
+          "PolarisPayments address is not configured; set POLARIS_PAYMENTS to charge subscriptions."
+        )
+      );
+    }
+
+    try {
+      const result = await this.kh.checkAndExecute(
+        {
+          contractAddress: payments,
+          chainId: this.deployment.chainId,
+          functionName: "isChargeDue",
+          functionArgs: encodeArgs([params.subscriptionId]),
+          abi: PAYMENTS_ABI,
+          condition: { operator: "eq", value: "true" },
+          action: {
+            contractAddress: payments,
+            functionName: "chargeDue",
+            functionArgs: encodeArgs([params.subscriptionId]),
+            abi: PAYMENTS_ABI,
+          },
+        },
+        { idempotencyKey: chargeKey(actionId, attempt) }
+      );
+
+      if (!("executionId" in result)) {
+        // Not due yet. The common path on any pass, and a success -- recorded
+        // so the run log shows the subscription was covered, not missed.
         const receipt: Receipt = {
           ...base,
           outcome: "skipped",

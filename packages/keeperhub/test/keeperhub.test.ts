@@ -49,6 +49,7 @@ function stubFetch(handlers: Handler[]): {
 const DEPLOYMENT = {
   chainId: 11_155_111,
   loanEngine: "0xLoanEngine",
+  payments: "0xPayments",
 };
 
 describe("argument encoding", () => {
@@ -222,6 +223,82 @@ describe("liquidation", () => {
     assert.equal(calls[0]!.body.functionName, "checkLiquidatable");
     assert.equal(calls[0]!.body.action.functionName, "liquidate");
     assert.equal(calls[0]!.body.condition.value, "true");
+  });
+});
+
+describe("subscription charges", () => {
+  it("checks and charges in one call, so a cancellation cannot be raced", async () => {
+    const { fetchImpl, calls } = stubFetch([
+      () => ({ status: 202, body: { executionId: "exec_sub", status: "pending" } }),
+      () => ({
+        status: 200,
+        body: { executionId: "exec_sub", status: "completed", transactionHash: "0xsub" },
+      }),
+    ]);
+    const kh = new KeeperHubClient({ apiKey: "kh_test", fetchImpl });
+    const keeper = new PolarisKeeper(kh, DEPLOYMENT, new InMemoryReceiptStore());
+
+    const receipt = await keeper.chargeSubscription({ subscriptionId: "4" });
+
+    assert.equal(receipt.outcome, "succeeded");
+    assert.equal(receipt.execution?.transactionHash, "0xsub");
+    assert.match(calls[0]!.url, /check-and-execute$/);
+    assert.equal(calls[0]!.body.functionName, "isChargeDue");
+    assert.equal(calls[0]!.body.action.functionName, "chargeDue");
+    assert.equal(calls[0]!.body.condition.value, "true");
+    assert.equal(calls[0]!.body.contractAddress, "0xPayments");
+  });
+
+  it("records a skip, and sends nothing, when the period is not up", async () => {
+    const { fetchImpl } = stubFetch([
+      () => ({ status: 200, body: { executed: false, conditionResult: false } }),
+    ]);
+    const kh = new KeeperHubClient({ apiKey: "kh_test", fetchImpl });
+    const keeper = new PolarisKeeper(kh, DEPLOYMENT, new InMemoryReceiptStore());
+
+    const receipt = await keeper.chargeSubscription({ subscriptionId: "4" });
+    assert.equal(receipt.outcome, "skipped");
+    assert.equal(receipt.execution, undefined);
+  });
+
+  it("fails loudly rather than silently when PolarisPayments is not configured", async () => {
+    const { fetchImpl, calls } = stubFetch([]);
+    const kh = new KeeperHubClient({ apiKey: "kh_test", fetchImpl });
+    const keeper = new PolarisKeeper(
+      kh,
+      { chainId: 11_155_111, loanEngine: "0xLoanEngine" },
+      new InMemoryReceiptStore()
+    );
+
+    const receipt = await keeper.chargeSubscription({ subscriptionId: "4" });
+    assert.equal(receipt.outcome, "failed");
+    assert.match(receipt.error?.message ?? "", /POLARIS_PAYMENTS/);
+    // The point of failing here is to send nothing at all.
+    assert.equal(calls.length, 0);
+  });
+
+  it("scopes the idempotency key per attempt, so a retry is not served the failure", async () => {
+    const { fetchImpl, calls } = stubFetch([
+      () => ({ status: 202, body: { executionId: "exec_a", status: "pending" } }),
+      () => ({ status: 200, body: { executionId: "exec_a", status: "completed" } }),
+      () => ({ status: 202, body: { executionId: "exec_b", status: "pending" } }),
+      () => ({ status: 200, body: { executionId: "exec_b", status: "completed" } }),
+    ]);
+    const kh = new KeeperHubClient({ apiKey: "kh_test", fetchImpl });
+    const keeper = new PolarisKeeper(kh, DEPLOYMENT, new InMemoryReceiptStore());
+
+    await keeper.chargeSubscription({ subscriptionId: "4", attempt: 1 });
+    await keeper.chargeSubscription({ subscriptionId: "4", attempt: 2 });
+
+    const keys = calls
+      .filter((c) => c.url.endsWith("check-and-execute"))
+      .map((c) => (c.init.headers as Record<string, string>)["Idempotency-Key"]);
+
+    assert.equal(keys.length, 2);
+    assert.notEqual(keys[0], keys[1]);
+    // KeeperHub caches failures as well as successes, so an unscoped key would
+    // serve attempt 2 whatever happened on attempt 1.
+    assert.deepEqual(keys, ["subscription-4-charge-a1", "subscription-4-charge-a2"]);
   });
 });
 

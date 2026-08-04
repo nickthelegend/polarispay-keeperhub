@@ -13,6 +13,7 @@ import type { ExecutionStatusResponse } from "./types.js";
 
 export type ReceiptKind =
   | "installment_charge"
+  | "subscription_charge"
   | "liquidation"
   | "merchant_settlement"
   | "score_update";
@@ -26,6 +27,7 @@ export type Receipt = {
   outcome: ReceiptOutcome;
   loanId?: string;
   installment?: number;
+  subscriptionId?: string;
   merchantId?: string;
   /** Human-readable units. */
   amount?: string;

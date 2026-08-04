@@ -13,7 +13,8 @@
     "settle": "node --experimental-strip-types src/cli.ts settle",
     "doctor": "node --experimental-strip-types src/cli.ts doctor",
     "workflows:push": "node --experimental-strip-types src/cli.ts workflows:push",
-    "health": "node --experimental-strip-types src/cli.ts health"
+    "health": "node --experimental-strip-types src/cli.ts health",
+    "subscriptions": "node --experimental-strip-types src/cli.ts subscriptions"
   },
   "dependencies": {
     "@polarispay/db": "workspace:*",

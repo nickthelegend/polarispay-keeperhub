@@ -1,9 +1,9 @@
 /**
- * The three keeper jobs.
+ * The keeper's jobs.
  *
- * Each one is a pure pass over the loan book: read what is due, act through
- * KeeperHub, write back what happened. They are safe to run repeatedly and
- * safe to run concurrently with each other.
+ * Each one is a pure pass over its source of truth: read what is due, act
+ * through KeeperHub, write back what happened. They are safe to run repeatedly
+ * and safe to run concurrently with each other.
  */
 
 import {
@@ -17,6 +17,7 @@ import {
 } from "@polarispay/keeperhub";
 
 import type { LoanBook } from "./loanbook.ts";
+import type { ChainSubscription } from "./subscriptions.ts";
 
 export type JobResult = {
   job: string;
@@ -216,6 +217,65 @@ export async function runLiquidation(opts: {
       continue;
     }
     const receipt = await opts.keeper.liquidateIfUnhealthy({ loanId: loan.loanId });
+    result.acted++;
+    result.receipts.push(receipt);
+    log(formatReceipt(receipt));
+
+    if (receipt.outcome === "succeeded") {
+      result.succeeded++;
+    } else if (receipt.outcome === "skipped") {
+      result.skipped++;
+    } else {
+      result.failed++;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Charge every subscription that is due.
+ *
+ * The candidate list comes from the chain rather than a book, because nothing
+ * originates a subscription off-chain -- a subscriber calls `subscribe`
+ * themselves -- so a local list would be incomplete from the first one we did
+ * not see.
+ *
+ * As with liquidation, the due test is not made here: `isChargeDue` is checked
+ * on chain inside the same call that charges, so a subscription cancelled a
+ * second before this runs is not charged on a stale read, and a race with
+ * another keeper on a permissionless entry point costs nothing.
+ */
+export async function runSubscriptions(opts: {
+  keeper: PolarisKeeper;
+  subscriptions: ChainSubscription[];
+  dryRun?: boolean;
+  log?: (line: string) => void;
+}): Promise<JobResult> {
+  const log = opts.log ?? console.log;
+
+  const result: JobResult = {
+    job: "subscriptions",
+    considered: opts.subscriptions.length,
+    acted: 0,
+    succeeded: 0,
+    failed: 0,
+    skipped: 0,
+    receipts: [],
+  };
+
+  for (const sub of opts.subscriptions) {
+    if (opts.dryRun) {
+      log(
+        `[dry-run] would test subscription ${sub.id} (plan ${sub.planId}, next charge ${new Date(
+          sub.nextChargeAt * 1000
+        ).toISOString()})`
+      );
+      result.skipped++;
+      continue;
+    }
+
+    const receipt = await opts.keeper.chargeSubscription({ subscriptionId: sub.id });
     result.acted++;
     result.receipts.push(receipt);
     log(formatReceipt(receipt));

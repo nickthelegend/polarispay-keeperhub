@@ -9,6 +9,10 @@ export type KeeperConfig = {
   loanEngine: string;
   /** Escrow used when settling merchants, if the run includes settlement. */
   merchantEscrow?: string;
+  /** PolarisPayments, for subscription charges. */
+  payments?: string;
+  /** Node the keeper reads chain state from directly, e.g. to list subscriptions. */
+  rpcUrl: string;
   /** Print what would happen without sending anything. */
   dryRun: boolean;
   /** Seconds between passes in `run`. */
@@ -37,6 +41,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): KeeperConfig {
     chainId,
     loanEngine,
     merchantEscrow: env.POLARIS_MERCHANT_ESCROW,
+    payments: env.POLARIS_PAYMENTS,
+    rpcUrl: env.SEPOLIA_RPC_URL ?? "https://ethereum-sepolia-rpc.publicnode.com",
     dryRun: env.KEEPER_DRY_RUN === "true",
     intervalSeconds: Number(env.KEEPER_INTERVAL_SECONDS ?? 300),
   };

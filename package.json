@@ -28,7 +28,8 @@
     "db:reconcile": "pnpm --filter @polarispay/db reconcile",
     "db:index": "pnpm --filter @polarispay/db index",
     "mcp:start": "pnpm --filter @polarispay/mcp start",
-    "keeper:health": "pnpm --filter @polarispay/keeper health"
+    "keeper:health": "pnpm --filter @polarispay/keeper health",
+    "keeper:subscriptions": "pnpm --filter @polarispay/keeper subscriptions"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
