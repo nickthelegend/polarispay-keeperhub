@@ -1,85 +1,121 @@
-# Polaris SDK
+# @polarispay/sdk
 
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
-![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)
-![ethers](https://img.shields.io/badge/ethers-6-2535A0?style=flat-square)
-
-> A drop-in React component for accepting on-chain USDC payments through the Polaris payment gateway.
-
-## Overview
-
-Polaris SDK is a lightweight React/TypeScript library that lets a web app collect crypto payments with a single component. It ships one export — `<PayWithPolaris />` — which handles the full checkout flow: it initializes a bill against the Polaris API, connects the user's wallet, ensures they are on the right network, approves the stablecoin, and settles the payment through an on-chain escrow contract. It is aimed at developers who want to add a "Pay with USDC" button to their app without writing wallet, network, and contract-interaction plumbing themselves.
-
-## Features
-
-- **One-component checkout** — render `<PayWithPolaris />` with your API credentials and payment details; the component drives the rest.
-- **Wallet integration via MetaMask** — connects through `window.ethereum` and signs with the user's account using [ethers](https://docs.ethers.org/) v6.
-- **Automatic network handling** — detects the current chain and prompts the wallet to switch to (or add) the Creditcoin Testnet if needed.
-- **ERC-20 approval flow** — reads the escrow contract's `stablecoin()` address, checks the existing allowance, and only requests an `approve` transaction when required.
-- **Escrow settlement** — calls `settlePayment(amount, orderId, details)` on the escrow contract and waits for confirmation.
-- **Live status + callbacks** — surfaces step-by-step status and error UI, and exposes `onSuccess(txHash)` / `onError(message)` callbacks.
-
-## Tech Stack
-
-- **Language:** TypeScript (targeting ES5, `react-jsx`)
-- **UI:** React 18 (peer dependency)
-- **Blockchain:** ethers v6 (peer dependency), MetaMask, Creditcoin Testnet
-- **Icons/Styling:** lucide-react icons with Tailwind-style utility classes
-- **Build:** `tsc` via the TypeScript compiler
-
-## Getting Started
-
-`react`, `react-dom`, and `ethers` are peer dependencies and must be present in the host app.
+Three payment modes, one object. Pay now, subscribe, or split into instalments.
 
 ```bash
-# clone
-git clone https://github.com/nickthelegend/polaris-sdk.git
-cd polaris-sdk
-
-# install and build
-npm install
-npm run build
+pnpm add @polarispay/sdk ethers
 ```
 
-Use the component in your app:
+```ts
+import { createPolaris } from "@polarispay/sdk";
 
-```tsx
-import { PayWithPolaris } from 'polaris-sdk';
+const polaris = createPolaris();
+```
 
-export default function Checkout() {
-  return (
-    <PayWithPolaris
-      apiKey={process.env.POLARIS_API_KEY!}
-      apiSecret={process.env.POLARIS_API_SECRET!}
-      amount={25}
-      details="Order #1234"
-      onSuccess={(txHash) => console.log('Paid:', txHash)}
-      onError={(err) => console.error(err)}
-    />
-  );
+That is the setup. It defaults to the live Sepolia deployment, reads the token's
+decimals from the token, approves only when the allowance is short, switches the
+wallet to the right chain, and returns a plain result object instead of throwing.
+
+## Pay now
+
+```ts
+const result = await polaris.pay({
+  merchant: "0x…",
+  amount: "25.00",
+  orderId: "ORD-1042",
+});
+
+if (result.ok) console.log(result.explorerUrl);
+else console.log(result.error);
+```
+
+The same `orderId` can never be charged twice — a retrying checkout gets a clean
+rejection rather than a second charge.
+
+## Subscribe
+
+```ts
+await polaris.subscribe({ planId: 1 });
+await polaris.cancelSubscription({ subscriptionId: 1 });
+```
+
+The first period is charged on subscribe, so a plan is never active having
+collected nothing. Cancelling is unilateral: it needs no merchant cooperation,
+and collection stops immediately.
+
+The approval covers one year of periods, not an unlimited allowance. That is the
+difference between a subscription and handing a merchant your wallet.
+
+## Split into instalments
+
+```ts
+const { eligible, limit, symbol } = await polaris.canPayLater("200.00");
+
+if (eligible) {
+  const result = await polaris.payLater({
+    amount: "200.00",
+    orderId: "ORD-1043",
+    installments: 4,
+  });
 }
 ```
 
-> Note: the component points at `http://localhost:3000/api/bills/create` for bill creation, so a Polaris API server must be running (or the URL adjusted) for the flow to complete.
+Check eligibility first and a buyer who is over their limit is told so, rather
+than watching a wallet popup fail. The buyer signs one approval; your backend
+opens the plan, so the buyer pays no gas to start it. A keeper collects each
+instalment on schedule without them coming back.
 
-## Project Structure
+`payLater` posts to `/api/checkout` by default — point `endpoint` at your own.
 
+## Credit and collateral
+
+```ts
+const credit = await polaris.getCredit();
+// { score: 612, limit: "950.00", baseLimit: "500.00",
+//   collateralLocked: "300.00", collateralBoost: "450.00", … }
+
+await polaris.lockCollateral({ amount: "300.00" });
+await polaris.withdrawCollateral({ amount: "300.00" });
 ```
-polaris-sdk/
-├── src/
-│   ├── components/
-│   │   └── PayWithPolaris.tsx   # the payment button + full checkout flow
-│   └── index.ts                # public entry point (re-exports the component)
-├── package.json
-├── package-lock.json
-├── tsconfig.json
-└── README.md
+
+Locking collateral raises the limit by 150% of what is locked. Withdrawal is
+blocked while a loan is outstanding, and `withdrawable` tells you when it is not.
+
+## React
+
+```tsx
+import { PayWithPolarisBNPL } from "@polarispay/sdk";
+
+<PayWithPolarisBNPL apiKey={key} amount="200.00" orderId="ORD-1" />
 ```
 
-## License
+A thin shell over the same functions. Building your own UI never means
+reimplementing decimals, approvals, or chain switching.
 
-MIT
+## Errors
 
----
+Every method returns `{ ok, transactionHash?, explorerUrl?, error? }`. Nothing
+throws for an expected failure, and contract reverts arrive as sentences a buyer
+can act on:
 
-Built by [**nickthelegend**](https://github.com/nickthelegend) · [nickthelegend.tech](https://nickthelegend.tech)
+| Revert | What the buyer sees |
+|---|---|
+| `ExceedsCreditLimit` | This order is above your credit limit. |
+| `DuplicatePayment` | This order has already been paid. |
+| `MerchantNotEligible` | This merchant cannot accept the order. |
+| user rejected | You cancelled the request. |
+
+## Another deployment
+
+```ts
+import { createPolaris, SEPOLIA } from "@polarispay/sdk";
+
+createPolaris({ contracts: { ...SEPOLIA, loanEngine: "0x…" } });
+```
+
+## Note on decimals
+
+Decimals are read from the token on every call. An earlier version of this SDK
+hardcoded 18 against a 6-decimal stablecoin, which overcharged by a factor of
+10^12 — the kind of bug that only surfaces in production, so the assumption is
+gone rather than corrected.

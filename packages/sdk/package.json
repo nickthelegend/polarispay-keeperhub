@@ -1,29 +1,39 @@
 {
-    "name": "polaris-sdk",
-    "version": "1.0.0",
-    "description": "Polaris Payment Gateway SDK",
-    "main": "dist/index.js",
-    "module": "dist/index.esm.js",
-    "typings": "dist/index.d.ts",
-    "scripts": {
-        "build": "tsc",
-        "test": "echo \"Error: no test specified\" && exit 1"
+  "name": "@polarispay/sdk",
+  "version": "0.2.0",
+  "description": "One object, three payment modes: pay now, subscribe, or split into instalments.",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "typings": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "payment",
+    "polaris",
+    "crypto"
+  ],
+  "author": "Polaris Team",
+  "license": "MIT",
+  "peerDependencies": {
+    "ethers": ">=6",
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.2.0",
+    "ethers": "^6.17.0",
+    "typescript": "^5.9.3"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
     },
-    "keywords": [
-        "payment",
-        "polaris",
-        "crypto"
-    ],
-    "author": "Polaris Team",
-    "license": "MIT",
-    "peerDependencies": {
-        "react": ">=18",
-        "react-dom": ">=18",
-        "ethers": ">=6"
-    },
-    "devDependencies": {
-        "@types/react": "^18.2.0",
-        "@types/react-dom": "^18.2.0",
-        "typescript": "^5.0.0"
+    "react-dom": {
+      "optional": true
     }
+  }
 }

@@ -16,8 +16,6 @@ import { BrowserProvider, Contract, formatUnits, parseUnits } from 'ethers';
  * the merchant's backend signs it, not the buyer. The buyer therefore pays no
  * gas to start a plan.
  *
- * The original single-payment escrow flow is still exported as
- * `PayWithPolaris` for merchants who have not migrated.
  */
 
 const ERC20_ABI = [
@@ -35,9 +33,9 @@ const SCORE_ABI = [
 /** Public Sepolia deployment. Override for your own. */
 export const POLARIS_SEPOLIA = {
   chainId: 11155111,
-  loanEngine: '0xF8DA73d32778f623D33C5D75c7359CbA1DA584ED',
+  loanEngine: '0x5d6F049f791C40b09701129b3663d1A8ce9eAB86',
   stablecoin: '0x49C86277a91002c4943837bf20F6ED41976Db09F',
-  scoreManager: '0x4e9e7EEF855BFE2c44608A9613E955fC67035312',
+  scoreManager: '0x13C5af8f4c6E7f3b26998451Cf4FD65a6Ca268e2',
 };
 
 export interface PayWithPolarisBNPLProps {
