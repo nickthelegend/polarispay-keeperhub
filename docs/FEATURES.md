@@ -2,7 +2,7 @@
 
 100 features across the PolarisPay stack. **Shipped** means the code is in this repo and exercised by a test or a run. **Wired** means the plumbing exists and needs data or a deployment to be live. **Planned** means designed but not built.
 
-Status counts: **38 shipped · 21 wired · 41 planned**
+Status counts: **44 shipped · 18 wired · 38 planned**
 
 ---
 
@@ -122,9 +122,9 @@ Status counts: **38 shipped · 21 wired · 41 planned**
 | 85 | Deep link to the settlement transaction on Etherscan | Shipped |
 | 86 | Tabular numerals throughout so figures align down the column | Shipped |
 | 87 | Auto-refresh every 20s | Shipped |
-| 88 | Merchant onboarding and API key issuance | Wired |
-| 89 | Webhook delivery with signature and replay | Wired |
-| 90 | Settlement export (CSV / accounting) | Planned |
+| 88 | Merchant onboarding, hashed API keys, rotation | Shipped |
+| 89 | Webhook delivery, HMAC signature, replay window, retry policy | Shipped |
+| 90 | Settlement export (CSV) | Shipped |
 | 91 | Refund and partial-refund flow | Planned |
 | 92 | Dispute handling backed by the receipt trail | Planned |
 
@@ -132,7 +132,7 @@ Status counts: **38 shipped · 21 wired · 41 planned**
 
 | # | Feature | Status |
 |---|---|---|
-| 93 | `<PayWithPolaris />` drop-in React component | Wired |
+| 93 | `<PayWithPolarisBNPL />` checkout with on-chain eligibility check | Shipped |
 | 94 | Shopify payments app and checkout UI extension | Wired |
 | 95 | Sepolia deployment scripts with address output | Shipped |
 | 96 | Faucet-enabled test stablecoin so a demo borrower can self-fund | Shipped |

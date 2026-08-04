@@ -27,3 +27,23 @@ export type {
   MerchantStatus,
   ReceiptDoc,
 } from "./schema.js";
+
+export {
+  generateApiKey,
+  generateWebhookSecret,
+  hashApiKey,
+  merchantForApiKey,
+  onboardMerchant,
+  rotateApiKey,
+  setMerchantStatus,
+  settlementCsv,
+} from './merchants.js';
+export type { OnboardResult } from './merchants.js';
+
+export {
+  deliverWebhook,
+  SIGNATURE_TOLERANCE_SECONDS,
+  signPayload,
+  verifySignature,
+} from './webhooks.js';
+export type { DeliveryResult, WebhookEvent, WebhookPayload } from './webhooks.js';

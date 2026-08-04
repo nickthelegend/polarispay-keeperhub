@@ -1,3 +1,5 @@
+import type { ObjectId } from "mongodb";
+
 /**
  * PolarisPay collections.
  *
@@ -12,7 +14,7 @@ export type LoanStatus = "active" | "repaid" | "liquidated" | "defaulted";
 export type MerchantStatus = "pending" | "active" | "suspended";
 
 export type MerchantDoc = {
-  _id?: unknown;
+  _id?: ObjectId;
   merchantId: string;
   name: string;
   walletAddress: string;
@@ -43,7 +45,7 @@ export type InstallmentDoc = {
 };
 
 export type LoanDoc = {
-  _id?: unknown;
+  _id?: ObjectId;
   /** On-chain loan id from PolarisLoanEngine. */
   loanId: string;
   chainId: number;
@@ -62,7 +64,7 @@ export type LoanDoc = {
 };
 
 export type ReceiptDoc = {
-  _id?: unknown;
+  _id?: ObjectId;
   actionId: string;
   kind: string;
   outcome: string;
@@ -88,7 +90,7 @@ export type ReceiptDoc = {
 
 /** Append-only audit log. Nothing here is ever updated or deleted. */
 export type EventDoc = {
-  _id?: unknown;
+  _id?: ObjectId;
   type: string;
   loanId?: string;
   merchantId?: string;
