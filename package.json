@@ -23,7 +23,8 @@
     "keeper:liquidate": "pnpm --filter @polarispay/keeper liquidate",
     "keeper:settle": "pnpm --filter @polarispay/keeper settle",
     "keeper:all": "pnpm --filter @polarispay/keeper start",
-    "workflows:push": "pnpm --filter @polarispay/keeper workflows:push"
+    "workflows:push": "pnpm --filter @polarispay/keeper workflows:push",
+    "db:purge": "pnpm --filter @polarispay/db purge"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

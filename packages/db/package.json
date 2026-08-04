@@ -16,7 +16,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "migrate": "npm run build && node dist/migrate.js",
     "seed": "npm run build && node dist/seed.js",
-    "sync": "npm run build && node dist/sync-chain.js"
+    "sync": "npm run build && node dist/sync-chain.js",
+    "purge": "npm run build && node dist/purge-unbacked.js"
   },
   "dependencies": {
     "mongodb": "^6.12.0"
