@@ -2,8 +2,10 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BrowserProvider, Contract, formatUnits, parseUnits } from 'ethers';
+
+import { useWallet } from '@/components/WalletProvider';
 
 /**
  * A real storefront on the live contracts.
@@ -53,6 +55,7 @@ type Wallet = {
 };
 
 export default function Store() {
+  const { address, connect, connecting, getProvider } = useWallet();
   const [wallet, setWallet] = useState<Wallet>();
   const [busy, setBusy] = useState<string>();
   const [note, setNote] = useState<{ kind: 'ok' | 'err' | 'info'; text: string; url?: string }>();
@@ -73,45 +76,42 @@ export default function Store() {
     ]);
     setWallet({
       address,
-      balance: formatUnits(balance, decimals),
+      // formatUnits gives full precision, which renders a balance as
+      // "9789145.412883" -- technically right and unreadable. Money is shown
+      // the way money is written.
+      balance: money(formatUnits(balance, decimals)),
       symbol,
       score: Number(score),
-      limit: formatUnits(limit, decimals),
+      limit: money(formatUnits(limit, decimals)),
     });
   }, []);
 
-  const connect = useCallback(async () => {
-    const eth = (globalThis as { ethereum?: any }).ethereum;
-    if (!eth) {
-      setNote({ kind: 'err', text: 'No wallet found. Install a browser wallet to continue.' });
+  // Whatever the connected address is -- connected here, connected from the
+  // header, or switched in the wallet itself -- the panel re-reads the chain for
+  // it. Account switching mid-session is the case that otherwise silently shows
+  // one address's credit next to another address's balance.
+  useEffect(() => {
+    if (!address) {
+      setWallet(undefined);
       return;
     }
-    try {
-      setBusy('connect');
-      setNote(undefined);
-      const provider = new BrowserProvider(eth);
-      const [address] = await provider.send('eth_requestAccounts', []);
-      const net = await provider.getNetwork();
-      if (net.chainId !== BigInt(CHAIN_ID)) {
-        await provider.send('wallet_switchEthereumChain', [
-          { chainId: `0x${CHAIN_ID.toString(16)}` },
-        ]);
-      }
-      await readWallet(address, provider);
-    } catch (err) {
-      setNote({ kind: 'err', text: readable(err) });
-    } finally {
-      setBusy(undefined);
-    }
-  }, [readWallet]);
+    const provider = getProvider();
+    if (!provider) return;
+    let live = true;
+    readWallet(address, provider).catch((err) => {
+      if (live) setNote({ kind: 'err', text: readable(err) });
+    });
+    return () => {
+      live = false;
+    };
+  }, [address, getProvider, readWallet]);
 
   /** Test tokens, so the flow is reachable without asking anyone for funds. */
   const claim = useCallback(async () => {
-    const eth = (globalThis as { ethereum?: any }).ethereum;
-    if (!eth || !wallet) return;
+    const provider = getProvider();
+    if (!provider || !wallet) return;
     try {
       setBusy('faucet');
-      const provider = new BrowserProvider(eth);
       const signer = await provider.getSigner();
       const tx = await new Contract(CONTRACTS.stablecoin, ERC20, signer).faucet();
       await tx.wait();
@@ -125,12 +125,11 @@ export default function Store() {
   }, [wallet, readWallet]);
 
   const buy = useCallback(async () => {
-    const eth = (globalThis as { ethereum?: any }).ethereum;
-    if (!eth || !wallet) return;
+    const provider = getProvider();
+    if (!provider || !wallet) return;
     const orderId = `${selected.id}-${Date.now()}`;
 
     try {
-      const provider = new BrowserProvider(eth);
       const signer = await provider.getSigner();
       const token = new Contract(CONTRACTS.stablecoin, ERC20, signer);
       const decimals = await token.decimals();
@@ -196,7 +195,9 @@ export default function Store() {
     }
   }, [wallet, selected, mode, perInstalment, readWallet]);
 
-  const affordable = wallet ? Number.parseFloat(wallet.limit) >= selected.price : true;
+  const affordable = wallet
+    ? Number.parseFloat(wallet.limit.replace(/,/g, '')) >= selected.price
+    : true;
 
   return (
     <div className="min-h-screen bg-background font-display text-foreground">
@@ -244,10 +245,10 @@ export default function Store() {
             <div>
               <button
                 onClick={connect}
-                disabled={busy === 'connect'}
+                disabled={connecting}
                 className="rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-black transition-transform hover:-translate-y-px disabled:opacity-60"
               >
-                {busy === 'connect' ? 'Connecting…' : 'Connect wallet'}
+                {connecting ? 'Connecting…' : 'Connect wallet'}
               </button>
               <p className="mt-3 font-mono text-[11px] text-white/40">
                 Sepolia. Your balance and credit limit are read from chain once connected.
@@ -279,7 +280,7 @@ export default function Store() {
 
               {mode === 'later' && !affordable && (
                 <p className="mt-4 text-[13px] text-amber-300">
-                  {selected.name} is above your {wallet.limit} limit. Lock collateral to raise it,
+                  {selected.name} is above your {wallet.limit} {wallet.symbol} limit. Lock collateral to raise it,
                   or pay in full.
                 </p>
               )}
@@ -348,6 +349,14 @@ function Figure({ label, value, mono }: { label: string; value: string; mono?: b
 }
 
 const explorer = (hash: string) => `https://sepolia.etherscan.io/tx/${hash}`;
+
+/** Two decimals, thousands separated. */
+function money(raw: string): string {
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n)
+    ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : raw;
+}
 
 async function merchantAddress(): Promise<string> {
   const res = await fetch('/api/merchant/address');

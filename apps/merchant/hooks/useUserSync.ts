@@ -1,27 +1,21 @@
-import { usePrivy } from '@privy-io/react-auth';
 import { useEffect } from 'react';
 
+import { useWallet } from '@/components/WalletProvider';
+
+/**
+ * Record the connected wallet so the merchant console can attribute activity to
+ * it. There is no email here any more: sign-in is the wallet, so an address is
+ * the whole identity.
+ */
 export function useUserSync() {
-    const { user, authenticated } = usePrivy();
+    const { address } = useWallet();
 
     useEffect(() => {
-        async function syncUser() {
-            if (authenticated && user?.wallet?.address) {
-                try {
-                    await fetch('/api/auth/sync', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            wallet_address: user.wallet.address,
-                            email: user.email?.address || null,
-                        }),
-                    });
-                } catch (err) {
-                    console.error('Failed to sync user', err);
-                }
-            }
-        }
-
-        syncUser();
-    }, [authenticated, user]);
+        if (!address) return;
+        fetch('/api/auth/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet_address: address }),
+        }).catch((err) => console.error('Failed to sync user', err));
+    }, [address]);
 }

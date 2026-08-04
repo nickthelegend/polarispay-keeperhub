@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { usePrivy } from '@privy-io/react-auth';
+import { useWallet } from '@/components/WalletProvider';
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { ArrowUpRight, Loader2 } from 'lucide-react';
@@ -40,21 +40,20 @@ const fetcher = (wallet: string) => async (url: string) => {
 };
 
 export default function Dashboard() {
-    const { user, authenticated, login, ready } = usePrivy();
-    const wallet = user?.wallet?.address ?? '';
+    const { address: wallet, connect, ready } = useWallet();
     const [filter, setFilter] = useState<'all' | 'collecting' | 'dunning' | 'closed'>('all');
 
     useEffect(() => {
-        if (authenticated && wallet) {
-            fetch('/api/auth/sync', {
-                method: 'POST',
-                body: JSON.stringify({ wallet_address: wallet, email: user?.email?.address }),
-            }).catch(() => undefined);
-        }
-    }, [authenticated, wallet, user]);
+        if (!wallet) return;
+        fetch('/api/auth/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet_address: wallet }),
+        }).catch(() => undefined);
+    }, [wallet]);
 
     const { data, error, isLoading } = useSWR<Overview>(
-        authenticated && wallet ? '/api/merchant/overview' : null,
+        wallet ? '/api/merchant/overview' : null,
         fetcher(wallet),
         { refreshInterval: 20_000 }
     );
@@ -69,7 +68,7 @@ export default function Dashboard() {
 
     if (!ready) return null;
 
-    if (!authenticated) return <SignIn onSignIn={login} />;
+    if (!wallet) return <SignIn onSignIn={connect} />;
 
     return (
         <div className="min-h-screen bg-background text-foreground font-display selection:bg-primary/25">

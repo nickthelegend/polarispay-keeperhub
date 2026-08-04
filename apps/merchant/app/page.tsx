@@ -45,10 +45,10 @@ export default function Home() {
                             Developer Portal <ArrowRight className="w-4 h-4" />
                         </Link>
                         <Link
-                            href="/shop"
+                            href="/store"
                             className="bg-white/5 border border-white/10 text-white font-bold px-10 py-5 rounded-xl hover:bg-white/10 transition-all active:scale-95 flex items-center gap-2 w-full sm:w-auto justify-center uppercase tracking-tighter"
                         >
-                            <ShoppingBag className="w-4 h-4" /> Live Demo
+                            <ShoppingBag className="w-4 h-4" /> Try the store
                         </Link>
                     </div>
                 </div>

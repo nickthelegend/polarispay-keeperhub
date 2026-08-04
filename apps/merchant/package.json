@@ -9,10 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@cofhe/sdk": "^0.5.2",
-    "@privy-io/react-auth": "^3.13.1",
-    "@stripe/stripe-js": "^9.12.1",
-    "@supabase/supabase-js": "^2.95.3",
     "clsx": "^2.1.1",
     "ethers": "^6.17.0",
     "framer-motion": "^12.34.0",
