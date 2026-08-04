@@ -22,8 +22,15 @@ export {
   DEFAULT_DUNNING_LADDER,
   dunningMessage,
   nextDunningStep,
+  partialCollection,
+  selfCure,
 } from "./dunning.js";
-export type { DunningDecision, DunningInput, DunningStage } from "./dunning.js";
+export type {
+  DunningDecision,
+  DunningInput,
+  DunningStage,
+  PartialDecision,
+} from "./dunning.js";
 
 export {
   LOAN_ENGINE_ABI,

@@ -24,7 +24,9 @@
     "keeper:settle": "pnpm --filter @polarispay/keeper settle",
     "keeper:all": "pnpm --filter @polarispay/keeper start",
     "workflows:push": "pnpm --filter @polarispay/keeper workflows:push",
-    "db:purge": "pnpm --filter @polarispay/db purge"
+    "db:purge": "pnpm --filter @polarispay/db purge",
+    "db:reconcile": "pnpm --filter @polarispay/db reconcile",
+    "db:index": "pnpm --filter @polarispay/db index"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

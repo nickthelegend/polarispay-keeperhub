@@ -18,7 +18,9 @@
     "seed": "npm run build && node dist/seed.js",
     "sync": "npm run build && node dist/sync-chain.js",
     "purge": "npm run build && node dist/purge-unbacked.js",
-    "test": "npm run build && node --test --experimental-strip-types test/*.test.ts"
+    "test": "npm run build && node --test --experimental-strip-types test/*.test.ts",
+    "reconcile": "npm run build && node dist/reconcile-cli.js",
+    "index": "npm run build && node dist/index-cli.js"
   },
   "dependencies": {
     "mongodb": "^6.12.0"

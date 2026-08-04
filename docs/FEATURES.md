@@ -2,7 +2,7 @@
 
 100 features across the PolarisPay stack. **Shipped** means the code is in this repo and exercised by a test or a run. **Wired** means the plumbing exists and needs data or a deployment to be live. **Planned** means designed but not built.
 
-Status counts: **46 shipped · 17 wired · 38 planned**
+Status counts: **50 shipped · 17 wired · 34 planned**
 
 ---
 
@@ -86,8 +86,8 @@ Status counts: **46 shipped · 17 wired · 38 planned**
 | 58 | Per-merchant configurable ladders | Wired |
 | 59 | Collection-rate metric on the merchant ledger | Shipped |
 | 60 | At-risk exposure figure | Shipped |
-| 61 | Retry on a smaller partial amount when the balance is short but non-zero | Planned |
-| 62 | Borrower self-cure flow ("top up and retry now") | Planned |
+| 61 | Partial collection when the balance is short, with a dust floor | Shipped |
+| 62 | Borrower self-cure that clears back-off without resetting attempts | Shipped |
 | 63 | Merchant-configurable risk appetite driving approval thresholds | Planned |
 | 64 | Portfolio-level exposure limits per merchant category | Planned |
 | 65 | Early-warning signal from wallet balance trend before an installment falls due | Planned |
@@ -105,9 +105,9 @@ Status counts: **46 shipped · 17 wired · 38 planned**
 | 72 | Cached connection pool safe for hot-reload and long-lived processes | Shipped |
 | 73 | Idempotent index migration | Shipped |
 | 74 | Installment schedule builder with exact remainder handling | Shipped |
-| 75 | On-chain event indexer backfilling the event log | Planned |
+| 75 | On-chain event indexer, idempotent and resumable | Shipped |
 | 76 | Read replica for merchant analytics | Planned |
-| 77 | Automated reconciliation job comparing chain state to the book | Planned |
+| 77 | Read-only chain-vs-book drift report with material exposure | Shipped |
 
 ## Merchant experience
 

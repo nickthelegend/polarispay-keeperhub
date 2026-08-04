@@ -14,7 +14,9 @@ import {
   KeeperHubClient,
   KeeperHubError,
   nextDunningStep,
+  partialCollection,
   PolarisKeeper,
+  selfCure,
 } from "../dist/index.js";
 
 type Handler = (url: string, init: RequestInit) => { status: number; body: unknown };
@@ -310,5 +312,54 @@ describe("transport", () => {
         }),
       (e: unknown) => e instanceof KeeperHubError && e.kind === "spend_cap"
     );
+  });
+});
+
+describe("partial collection", () => {
+  const due = 50_000_000n; // 50.00
+
+  it("collects what is available rather than nothing when the borrower is short", () => {
+    const d = partialCollection({ dueRaw: due, availableRaw: 38_000_000n });
+    assert.equal(d.action, "collect-partial");
+    if (d.action === "collect-partial") {
+      assert.equal(d.amountRaw, "38000000");
+      assert.equal(d.shortfallRaw, "12000000");
+    }
+  });
+
+  it("defers to normal collection when the full amount is available", () => {
+    assert.equal(partialCollection({ dueRaw: due, availableRaw: due }).action, "skip");
+  });
+
+  it("skips dust, because the gas costs more than it recovers", () => {
+    const d = partialCollection({ dueRaw: due, availableRaw: 300_000n });
+    assert.equal(d.action, "skip");
+    if (d.action === "skip") assert.match(d.reason, /floor/);
+  });
+
+  it("skips an empty wallet", () => {
+    assert.equal(partialCollection({ dueRaw: due, availableRaw: 0n }).action, "skip");
+  });
+
+  it("honours an explicit floor over the default", () => {
+    const d = partialCollection({ dueRaw: due, availableRaw: 3_000_000n, floorRaw: 1_000_000n });
+    assert.equal(d.action, "collect-partial");
+  });
+});
+
+describe("self cure", () => {
+  it("lets a borrower who topped up retry immediately", () => {
+    const r = selfCure({ attemptsMade: 2 });
+    assert.equal(r.allowed, true);
+  });
+
+  it("does NOT reset the attempt counter, so cycling cannot dodge escalation", () => {
+    assert.equal(selfCure({ attemptsMade: 3 }).attemptsMade, 3);
+  });
+
+  it("refuses once the ladder is exhausted", () => {
+    const r = selfCure({ attemptsMade: 5 });
+    assert.equal(r.allowed, false);
+    assert.match(r.reason ?? "", /liquidation/);
   });
 });

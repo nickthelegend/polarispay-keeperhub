@@ -100,6 +100,73 @@ export function nextDunningStep(input: DunningInput): DunningDecision {
   };
 }
 
+/**
+ * Decide whether to collect a smaller amount when the borrower is short.
+ *
+ * A borrower with 38 of a 50 instalment is not a default -- taking the 38 now
+ * reduces exposure, keeps the plan moving, and leaves a smaller shortfall to
+ * chase. Taking nothing is strictly worse for both sides.
+ *
+ * Guarded by a floor: collecting dust costs more in gas than it recovers, and
+ * a stream of 0.30 charges reads to a borrower like a malfunction.
+ */
+export type PartialDecision =
+  | { action: "collect-partial"; amountRaw: string; shortfallRaw: string }
+  | { action: "skip"; reason: string };
+
+export function partialCollection(params: {
+  /** Instalment due, in base units. */
+  dueRaw: bigint;
+  /** What the borrower can actually cover right now, in base units. */
+  availableRaw: bigint;
+  /** Smallest worthwhile charge. Defaults to 20% of the instalment. */
+  floorRaw?: bigint;
+}): PartialDecision {
+  const floor = params.floorRaw ?? params.dueRaw / 5n;
+
+  if (params.availableRaw >= params.dueRaw) {
+    return { action: "skip", reason: "full amount is available; collect normally" };
+  }
+  if (params.availableRaw <= 0n) {
+    return { action: "skip", reason: "nothing to collect" };
+  }
+  if (params.availableRaw < floor) {
+    return {
+      action: "skip",
+      reason: `available ${params.availableRaw} is below the ${floor} floor; not worth the gas`,
+    };
+  }
+  return {
+    action: "collect-partial",
+    amountRaw: params.availableRaw.toString(),
+    shortfallRaw: (params.dueRaw - params.availableRaw).toString(),
+  };
+}
+
+/**
+ * A borrower who has just topped up should not wait out the back-off.
+ *
+ * Self-cure clears `nextAttemptAt` so the next keeper pass picks the
+ * instalment up, but deliberately does not reset the attempt counter: the
+ * misses still happened, and wiping them would let a borrower cycle
+ * indefinitely without ever reaching escalation.
+ */
+export function selfCure(input: {
+  attemptsMade: number;
+  ladder?: readonly DunningStage[];
+}): { allowed: boolean; reason?: string; attemptsMade: number } {
+  const ladder = input.ladder ?? DEFAULT_DUNNING_LADDER;
+  const exhausted = input.attemptsMade >= ladder.length;
+  if (exhausted) {
+    return {
+      allowed: false,
+      reason: "Dunning ladder is exhausted; this loan is a liquidation candidate.",
+      attemptsMade: input.attemptsMade,
+    };
+  }
+  return { allowed: true, attemptsMade: input.attemptsMade };
+}
+
 /** Borrower-facing copy for a dunning stage. Plain, not threatening. */
 export function dunningMessage(
   stage: DunningStage,

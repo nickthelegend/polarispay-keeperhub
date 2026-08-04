@@ -47,3 +47,9 @@ export {
   verifySignature,
 } from './webhooks.js';
 export type { DeliveryResult, WebhookEvent, WebhookPayload } from './webhooks.js';
+
+export { materialExposure, reconcile } from './reconcile.js';
+export type { Drift, ReconcileReport } from './reconcile.js';
+
+export { indexEvents, lastIndexedBlock } from './indexer.js';
+export type { IndexResult } from './indexer.js';
