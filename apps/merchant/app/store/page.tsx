@@ -98,9 +98,14 @@ export default function Store() {
     const provider = getProvider();
     if (!provider) return;
     let live = true;
-    readWallet(address, provider).catch((err) => {
-      if (live) setNote({ kind: 'err', text: readable(err) });
-    });
+    // Retry once before saying anything. A public RPC drops the occasional
+    // read, and the panel going red over a blip -- while every number behind it
+    // is fine -- reads as a broken product rather than a slow node.
+    readWallet(address, provider)
+      .catch(() => (live ? sleep(1200).then(() => readWallet(address, provider)) : undefined))
+      .catch((err) => {
+        if (live) setNote({ kind: 'err', text: readable(err) });
+      });
     return () => {
       live = false;
     };
@@ -379,5 +384,14 @@ function readable(err: unknown): string {
   if (/DuplicatePayment/i.test(raw)) return 'This order has already been paid.';
   if (/FaucetCooldown/i.test(raw)) return 'The faucet allows one claim per hour.';
   if (/InsufficientAllowance/i.test(raw)) return 'Approve the allowance first, then try again.';
+  // Anything left is an ethers or RPC internal ("missing revert data",
+  // "could not coalesce error"). Those name a cause the shopper cannot act on,
+  // so say what it means for them instead.
+  if (/missing revert data|could not coalesce|CALL_EXCEPTION|network|fetch/i.test(raw)) {
+    return 'Could not reach the network just now. Try again in a moment.';
+  }
   return raw.length > 150 ? `${raw.slice(0, 147)}…` : raw;
 }
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));

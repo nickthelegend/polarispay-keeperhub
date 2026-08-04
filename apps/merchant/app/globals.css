@@ -42,6 +42,20 @@
     border-color: var(--color-border);
   }
 
+  /*
+   * The background belongs on the root element, not only on body.
+   *
+   * With it on body alone, html stays transparent and the browser paints its
+   * own default there -- which shows as a white strip down the scrollbar gutter
+   * and below the fold on a short page. `color-scheme` is the other half: it is
+   * what tells the browser to render the scrollbar, form controls and overscroll
+   * in their dark variants rather than light ones on a near-black app.
+   */
+  html {
+    background-color: var(--color-background);
+    color-scheme: dark;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
