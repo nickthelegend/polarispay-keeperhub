@@ -69,6 +69,8 @@ export type LoanDoc = {
   installments: InstallmentDoc[];
   liquidationCandidate: boolean;
   creditScoreAtOrigination?: number;
+  /** Set when the loan leaves `active`, whether by repayment or liquidation. */
+  closedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 };

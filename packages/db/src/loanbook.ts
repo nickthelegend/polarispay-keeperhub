@@ -51,6 +51,30 @@ function toBookLoan(doc: LoanDoc): BookLoan {
   };
 }
 
+/**
+ * The loan's repaid total after collecting one instalment.
+ *
+ * Split out and exported because getting this wrong is expensive in both
+ * directions: undercount and the borrower is told they owe money they have
+ * already paid, overcount and the protocol writes off debt nobody settled.
+ *
+ * The cap matters on the final instalment. Instalment amounts are the total
+ * divided into equal parts and rounded up, so the parts can sum to slightly
+ * more than the total -- crediting the raw amount would leave the book
+ * claiming a loan was overpaid.
+ */
+export function repaidAfterCollecting(loan: {
+  totalOwedRaw: string;
+  totalRepaidRaw: string;
+  amountRaw: string;
+}): string {
+  const owed = BigInt(loan.totalOwedRaw);
+  const repaid = BigInt(loan.totalRepaidRaw);
+  const room = owed > repaid ? owed - repaid : 0n;
+  const amount = BigInt(loan.amountRaw);
+  return (repaid + (amount > room ? room : amount)).toString();
+}
+
 export class MongoLoanBook {
   async dueInstallments(
     now: Date
@@ -123,11 +147,65 @@ export class MongoLoanBook {
       set["installments.$[el].paidAt"] = new Date();
     }
 
-    await loans.updateOne(
+    const update: Record<string, unknown> = { $set: set };
+    if (Object.keys(unset).length > 0) update.$unset = unset;
+
+    // A plain updateOne is enough for anything but a collection.
+    if (patch.state !== "paid") {
+      await loans.updateOne({ loanId }, update, { arrayFilters: [{ "el.index": index }] });
+      return;
+    }
+
+    // Move the loan total in the same write that marks the instalment paid.
+    //
+    // This used to be left to the chain sync, which meant that between a
+    // collection and the next sync the book disagreed with itself: instalments
+    // marked paid, totalRepaidRaw unmoved. Everything derived from the loan
+    // total inherited the error -- the borrower's dashboard overstated their
+    // debt by the amount just collected and withheld the credit they had just
+    // freed up. Being told you still owe money you have already paid is the one
+    // thing a credit product must never do.
+    const doc = await loans.findOne(
       { loanId },
-      Object.keys(unset).length > 0 ? { $set: set, $unset: unset } : { $set: set },
+      { projection: { installments: 1, totalOwedRaw: 1, totalRepaidRaw: 1 } }
+    );
+    const inst = doc?.installments.find((i) => i.index === index);
+    if (!doc || !inst) return;
+
+    if (inst.state !== "paid") {
+      const repaid = repaidAfterCollecting({
+        totalOwedRaw: doc.totalOwedRaw,
+        totalRepaidRaw: doc.totalRepaidRaw,
+        amountRaw: inst.amountRaw,
+      });
+      set.totalRepaidRaw = repaid;
+
+      // Close the loan on the last instalment. The contract flips its own
+      // status once the debt is cleared, and a book that leaves it "active"
+      // keeps the plan on the borrower's dashboard, keeps it in the settlement
+      // and liquidation candidate queries, and keeps its collateral looking
+      // locked -- all for a loan that is finished.
+      if (BigInt(repaid) >= BigInt(doc.totalOwedRaw)) {
+        set.status = "repaid";
+        set.closedAt = new Date();
+      }
+    }
+
+    // Requiring the instalment to still be unpaid makes this compare-and-swap:
+    // a retry that races another writer onto the same instalment matches
+    // nothing and so cannot count the payment twice.
+    const result = await loans.updateOne(
+      { loanId, installments: { $elemMatch: { index, state: { $ne: "paid" } } } },
+      update,
       { arrayFilters: [{ "el.index": index }] }
     );
+
+    // It was already paid. Still record the transaction hash and attempt count,
+    // which are facts about this attempt, without touching the total.
+    if (result.matchedCount === 0) {
+      delete set.totalRepaidRaw;
+      await loans.updateOne({ loanId }, update, { arrayFilters: [{ "el.index": index }] });
+    }
   }
 
   async markLiquidationCandidate(loanId: string): Promise<void> {

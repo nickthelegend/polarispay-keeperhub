@@ -91,6 +91,11 @@ export async function runCollection(opts: {
         attempts: attempt,
         nextAttemptAt: undefined,
         lastFailureKind: undefined,
+        // Without this a collected instalment has no link back to the
+        // transaction that paid it, so neither the borrower nor the merchant
+        // can go and check -- and "go and check" is the whole claim an on-chain
+        // payments product is making.
+        transactionHash: receipt.execution?.transactionHash,
       });
       continue;
     }

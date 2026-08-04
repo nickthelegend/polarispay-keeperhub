@@ -13,6 +13,7 @@ export {
   MongoLoanBook,
   MongoReceiptStore,
   recordEvent,
+  repaidAfterCollecting,
 } from "./loanbook.js";
 export type { BookLoan, StoredReceipt } from "./loanbook.js";
 
