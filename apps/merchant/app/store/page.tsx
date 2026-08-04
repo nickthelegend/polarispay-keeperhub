@@ -208,149 +208,268 @@ export default function Store() {
 
   return (
     <div className="min-h-screen bg-background font-display text-foreground">
-      <main className="mx-auto max-w-[1000px] px-6 py-14 md:px-10">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-white/45">
-          Demo store · live Sepolia
-        </p>
-        <h1 className="mt-3 text-[2rem] font-semibold leading-tight tracking-[-0.02em]">
-          Buy something on credit
-        </h1>
-        <p className="mt-3 max-w-[58ch] text-[15px] leading-relaxed text-white/50">
-          Real contracts, real transactions. Pay in full, or split into four —
-          nothing is locked up front and instalments collect themselves.
-        </p>
+      <main className="mx-auto max-w-[1180px] px-6 pb-24 pt-12 md:px-10">
+        <header className="max-w-[52ch]">
+          <p className="label">Demo store · live Sepolia</p>
+          <h1 className="mt-4 text-[clamp(2rem,4.5vw,2.75rem)] font-semibold leading-[1.08] tracking-[-0.03em]">
+            Buy something on credit
+          </h1>
+          <p className="mt-4 text-[15px] leading-relaxed text-foreground/55">
+            Real contracts, real transactions. Nothing is locked up front, and the instalments
+            collect themselves.
+          </p>
+        </header>
 
-        <section className="mt-10 grid gap-4 sm:grid-cols-3">
-          {CATALOGUE.map((p) => {
-            const active = p.id === selected.id;
-            return (
-              <button
+        {/* Catalogue beside the checkout, the way a shop actually reads: browse
+            on the left, commit on the right, with the panel staying in view. */}
+        <div className="mt-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-12 lg:items-start">
+          <section aria-label="Products" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            {CATALOGUE.map((p) => (
+              <ProductTile
                 key={p.id}
-                onClick={() => setSelected(p)}
-                aria-pressed={active}
-                className={`rounded-lg border p-5 text-left transition-colors ${
-                  active
-                    ? 'border-primary/60 bg-primary/[0.06]'
-                    : 'border-white/10 hover:border-white/25'
-                }`}
-              >
-                <p className="text-sm font-medium text-white/90">{p.name}</p>
-                <p className="mt-1 text-[13px] text-white/45">{p.blurb}</p>
-                <p className="mt-4 font-mono text-xl tabular-nums text-white">
-                  {p.price.toFixed(2)}
-                </p>
-                <p className="mt-1 font-mono text-[11px] text-white/40">
-                  or {(p.price / 4).toFixed(2)} × 4
-                </p>
-              </button>
-            );
-          })}
-        </section>
+                product={p}
+                selected={p.id === selected.id}
+                onSelect={() => setSelected(p)}
+              />
+            ))}
+          </section>
 
-        <section className="mt-10 border-t border-white/10 pt-8">
-          {!wallet ? (
-            <div>
-              <button
-                onClick={connect}
-                disabled={connecting}
-                className="rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-black transition-transform hover:-translate-y-px disabled:opacity-60"
-              >
-                {connecting ? 'Connecting…' : 'Connect wallet'}
-              </button>
-              <p className="mt-3 font-mono text-[11px] text-white/40">
-                Sepolia. Your balance and credit limit are read from chain once connected.
-              </p>
-            </div>
-          ) : (
-            <>
-              <dl className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
-                <Figure label="Wallet" value={`${wallet.address.slice(0, 6)}…${wallet.address.slice(-4)}`} mono />
-                <Figure label="Balance" value={`${wallet.balance} ${wallet.symbol}`} mono />
-                <Figure label="Polaris score" value={String(wallet.score)} mono />
-                <Figure label="Credit limit" value={wallet.limit} mono />
-              </dl>
+          <aside className="surface lg:sticky lg:top-24 p-6">
+            {wallet ? (
+              <>
+                <div className="flex items-baseline justify-between gap-4">
+                  <h2 className="text-base font-semibold">Checkout</h2>
+                  <span className="font-mono text-[11px] text-foreground/40">
+                    {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
+                  </span>
+                </div>
 
-              <div className="mt-8 flex flex-wrap items-center gap-2">
-                {(['later', 'now'] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setMode(m)}
-                    aria-pressed={mode === m}
-                    className={`rounded-full px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
-                      mode === m ? 'bg-primary text-black' : 'text-white/50 hover:bg-white/5'
-                    }`}
-                  >
-                    {m === 'later' ? `Pay ${perInstalment} × 4` : 'Pay in full'}
-                  </button>
-                ))}
-              </div>
+                <p className="mt-1 text-sm text-foreground/50">{selected.name}</p>
 
-              {mode === 'later' && !affordable && (
-                <p className="mt-4 text-[13px] text-amber-300">
-                  {selected.name} is above your {wallet.limit} {wallet.symbol} limit. Lock collateral to raise it,
-                  or pay in full.
-                </p>
-              )}
+                <div className="mt-6 space-y-3">
+                  <PlanOption
+                    selected={mode === 'later'}
+                    onSelect={() => setMode('later')}
+                    disabled={!affordable}
+                    title={`4 payments of ${perInstalment}`}
+                    caption={
+                      affordable
+                        ? 'First today, then one a fortnight. Collected automatically.'
+                        : `Above your ${wallet.limit} limit`
+                    }
+                    lead={perInstalment}
+                    schedule={4}
+                  />
+                  <PlanOption
+                    selected={mode === 'now'}
+                    onSelect={() => setMode('now')}
+                    title="Pay in full"
+                    caption="One transaction, settled immediately."
+                    lead={selected.price.toFixed(2)}
+                    schedule={1}
+                  />
+                </div>
 
-              <div className="mt-6 flex flex-wrap gap-3">
                 <button
                   onClick={buy}
                   disabled={Boolean(busy) || (mode === 'later' && !affordable)}
-                  className="rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-black transition-transform hover:-translate-y-px disabled:opacity-50"
+                  className="mt-6 w-full rounded-[calc(var(--radius)-2px)] bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {busy === 'buy'
                     ? 'Working…'
                     : mode === 'later'
-                      ? `Pay ${perInstalment} now, rest later`
-                      : `Pay ${selected.price.toFixed(2)} now`}
+                      ? `Pay ${perInstalment} today`
+                      : `Pay ${selected.price.toFixed(2)}`}
                 </button>
+
+                <dl className="mt-6 space-y-2.5 border-t border-foreground/8 pt-5 text-sm">
+                  <Row term="Balance" value={`${wallet.balance} ${wallet.symbol}`} />
+                  <Row term="Credit limit" value={wallet.limit} />
+                  <Row term="Polaris score" value={String(wallet.score)} />
+                </dl>
+
                 <button
                   onClick={claim}
                   disabled={Boolean(busy)}
-                  className="rounded-lg border border-white/15 px-5 py-3 text-sm text-white/70 transition-colors hover:border-white/30 disabled:opacity-50"
+                  className="mt-4 w-full rounded-[calc(var(--radius)-2px)] border border-foreground/12 px-5 py-2.5 text-[13px] text-foreground/65 transition-colors hover:border-foreground/25 hover:text-foreground disabled:opacity-50"
                 >
                   {busy === 'faucet' ? 'Claiming…' : 'Get test tokens'}
                 </button>
-              </div>
-            </>
-          )}
-
-          {note && (
-            <p
-              className={`mt-5 text-[13px] ${
-                note.kind === 'err'
-                  ? 'text-rose-300'
-                  : note.kind === 'ok'
-                    ? 'text-primary'
-                    : 'text-white/55'
-              }`}
-            >
-              {note.text}{' '}
-              {note.url && (
-                <a
-                  href={note.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-4"
+              </>
+            ) : (
+              <>
+                <h2 className="text-base font-semibold">Checkout</h2>
+                <p className="mt-2 text-sm leading-relaxed text-foreground/55">
+                  Connect a wallet to see what you can spend. Your limit is read from the chain,
+                  not from a form.
+                </p>
+                <button
+                  onClick={connect}
+                  disabled={connecting}
+                  className="mt-6 w-full rounded-[calc(var(--radius)-2px)] bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-60"
                 >
-                  View transaction
-                </a>
-              )}
-            </p>
-          )}
-        </section>
+                  {connecting ? 'Connecting…' : 'Connect wallet'}
+                </button>
+                <p className="mt-4 text-xs leading-relaxed text-foreground/40">
+                  Sepolia testnet. Nothing here moves real money.
+                </p>
+              </>
+            )}
+
+            {note && (
+              <p
+                className={`mt-5 text-[13px] leading-relaxed ${
+                  note.kind === 'err'
+                    ? 'text-rose-300'
+                    : note.kind === 'ok'
+                      ? 'text-primary'
+                      : 'text-foreground/55'
+                }`}
+              >
+                {note.text}{' '}
+                {note.url && (
+                  <a
+                    href={note.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-4"
+                  >
+                    View transaction
+                  </a>
+                )}
+              </p>
+            )}
+          </aside>
+        </div>
       </main>
     </div>
   );
 }
 
-function Figure({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+/**
+ * A product. The price leads because the price is what the plan is built from,
+ * and the split sits under it so the two are read as one offer rather than as a
+ * figure and a footnote.
+ */
+function ProductTile({
+  product,
+  selected,
+  onSelect,
+}: {
+  product: Product;
+  selected: boolean;
+  onSelect: () => void;
+}) {
   return (
-    <div>
-      <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/40">{label}</dt>
-      <dd className={`mt-1.5 text-white/90 ${mono ? 'font-mono tabular-nums text-sm' : 'text-sm'}`}>
-        {value}
-      </dd>
+    <button
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={`surface surface-interactive flex w-full items-center gap-5 p-5 text-left ${
+        selected ? 'surface-selected' : ''
+      }`}
+    >
+      {/* No photography in this demo, so the mark is drawn from the product's
+          own initials rather than filled with a stock image that would be a
+          lie about the catalogue. */}
+      <span
+        aria-hidden
+        className={`grid size-14 shrink-0 place-items-center rounded-[calc(var(--radius)-3px)] border font-mono text-base font-semibold transition-colors ${
+          selected
+            ? 'border-primary/40 bg-primary/12 text-primary'
+            : 'border-foreground/10 bg-foreground/[0.04] text-foreground/40'
+        }`}
+      >
+        {product.name
+          .split(' ')
+          .map((w) => w[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase()}
+      </span>
+
+      <span className="min-w-0 flex-1">
+        <span className="block font-medium leading-tight">{product.name}</span>
+        <span className="mt-1 block text-[13px] text-foreground/45">{product.blurb}</span>
+      </span>
+
+      <span className="shrink-0 text-right">
+        <span className="figure block text-lg font-semibold">{product.price.toFixed(2)}</span>
+        <span className="mt-0.5 block font-mono text-[11px] text-foreground/40">
+          {(product.price / 4).toFixed(2)} × 4
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/**
+ * The payment choice, which is the moment this product exists for. Each option
+ * draws its own schedule, so splitting into four is something you can see
+ * rather than a label you have to trust.
+ */
+function PlanOption({
+  selected,
+  onSelect,
+  disabled,
+  title,
+  caption,
+  lead,
+  schedule,
+}: {
+  selected: boolean;
+  onSelect: () => void;
+  disabled?: boolean;
+  title: string;
+  caption: string;
+  lead: string;
+  schedule: number;
+}) {
+  return (
+    <button
+      onClick={onSelect}
+      disabled={disabled}
+      aria-pressed={selected}
+      className={`surface surface-interactive w-full p-4 text-left disabled:cursor-not-allowed disabled:opacity-45 ${
+        selected ? 'surface-selected' : ''
+      }`}
+    >
+      <span className="flex items-start justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block text-sm font-medium leading-tight">{title}</span>
+          <span className="mt-1 block text-xs leading-relaxed text-foreground/45">{caption}</span>
+        </span>
+        <span
+          aria-hidden
+          className={`mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border ${
+            selected ? 'border-primary bg-primary' : 'border-foreground/25'
+          }`}
+        >
+          {selected && <span className="size-1.5 rounded-full bg-primary-foreground" />}
+        </span>
+      </span>
+
+      <span className="mt-3.5 flex gap-1" aria-hidden>
+        {Array.from({ length: schedule }, (_, i) => (
+          <span
+            key={i}
+            className={`h-1 flex-1 rounded-full ${
+              selected ? (i === 0 ? 'bg-primary' : 'bg-primary/30') : 'bg-foreground/15'
+            }`}
+          />
+        ))}
+      </span>
+      <span className="mt-2 block font-mono text-[11px] text-foreground/40">
+        {schedule > 1 ? `${lead} today, then ${schedule - 1} more` : `${lead} today`}
+      </span>
+    </button>
+  );
+}
+
+function Row({ term, value }: { term: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <dt className="text-foreground/45">{term}</dt>
+      <dd className="figure font-medium">{value}</dd>
     </div>
   );
 }

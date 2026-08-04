@@ -97,11 +97,6 @@
   text-shadow: 0 0 10px rgba(166, 242, 74, 0.7), 0 0 20px rgba(166, 242, 74, 0.3);
 }
 
-.grid-bg {
-  background-image: linear-gradient(rgba(166, 242, 74, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(166, 242, 74, 0.04) 1px, transparent 1px);
-  background-size: 80px 80px;
-}
 
 .glow-bg {
   background: radial-gradient(circle at 50% -20%, rgba(167, 242, 74, 0.12) 0%, rgba(10, 11, 16, 0) 60%);
@@ -126,5 +121,117 @@
 
   to {
     top: 100%;
+  }
+}
+/* ---------------------------------------------------------------------------
+ * Surfaces, rules and figures.
+ *
+ * The palette is unchanged. What was missing is everything between a colour and
+ * a screen: a card that reads as a physical plane, a divider quiet enough to
+ * organise without boxing, and numerals that line up in a column of money.
+ *
+ * The old UI expressed every relationship as a 1px rounded rectangle, so a
+ * summary figure, a form and a table all carried the same weight. These give
+ * grouping a range: a plane when something is genuinely a distinct object, a
+ * rule when it is merely the next section, and nothing at all when proximity
+ * already says it.
+ * ------------------------------------------------------------------------ */
+
+@layer components {
+  /*
+   * A raised plane. The top highlight is what sells it: real cards catch light
+   * on their upper edge, and a border alone reads as an outline drawn on glass.
+   * The shadow carries an offset as well as a blur, so the plane sits above the
+   * page rather than glowing on it.
+   */
+  .surface {
+    background:
+      linear-gradient(
+        to bottom,
+        color-mix(in oklab, var(--color-foreground) 4%, transparent),
+        transparent 40%
+      ),
+      var(--color-card);
+    border: 1px solid color-mix(in oklab, var(--color-foreground) 8%, transparent);
+    border-radius: var(--radius);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklab, var(--color-foreground) 7%, transparent),
+      0 1px 2px -1px rgb(0 0 0 / 0.4),
+      0 8px 24px -12px rgb(0 0 0 / 0.5);
+  }
+
+  /* Interactive planes lift toward the light rather than changing colour. */
+  .surface-interactive {
+    transition:
+      border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .surface-interactive:hover {
+    border-color: color-mix(in oklab, var(--color-foreground) 16%, transparent);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklab, var(--color-foreground) 10%, transparent),
+      0 2px 4px -2px rgb(0 0 0 / 0.4),
+      0 16px 32px -16px rgb(0 0 0 / 0.6);
+  }
+
+  /*
+   * Selected state carries the accent on the edge and a wash inside, so a
+   * chosen option is legible without the lime shouting over the content.
+   */
+  .surface-selected {
+    border-color: color-mix(in oklab, var(--color-primary) 45%, transparent);
+    background:
+      linear-gradient(
+        to bottom,
+        color-mix(in oklab, var(--color-primary) 8%, transparent),
+        transparent 55%
+      ),
+      var(--color-card);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklab, var(--color-primary) 22%, transparent),
+      0 1px 2px -1px rgb(0 0 0 / 0.4),
+      0 12px 28px -14px color-mix(in oklab, var(--color-primary) 22%, black);
+  }
+
+  /* A divider that organises without drawing a box. */
+  .rule {
+    border: 0;
+    border-top: 1px solid color-mix(in oklab, var(--color-foreground) 8%, transparent);
+  }
+
+  /*
+   * Money. Tabular figures so digits sit in a column and a changing value does
+   * not shift the ones beside it, and a tighter track because large numerals
+   * carry more built-in sidebearing than letters do.
+   */
+  .figure {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "ss01" 1;
+    letter-spacing: -0.02em;
+  }
+
+  .figure-lg {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: -0.035em;
+    line-height: 0.95;
+  }
+
+  /*
+   * The quiet label that names a figure.
+   *
+   * 60% rather than the 45% this started at: uppercase at 11px is the smallest
+   * text on the page, and the lighter tint measured about 3.7:1 against this
+   * background -- under the 4.5:1 that small text needs. Quiet has to stop
+   * where legible ends.
+   */
+  .label {
+    font-size: 0.6875rem;
+    line-height: 1.2;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--color-foreground) 60%, transparent);
   }
 }

@@ -105,29 +105,66 @@ export function Ledger({
 }) {
     if (error) return <ErrorState message={error.message} />;
 
+    const atRisk = Number.parseFloat((data?.atRiskDisplay ?? '0').replace(/,/g, '')) || 0;
+
     return (
         <>
-            {/* The one number a merchant opens this page for: what is still owed to
-                them. Everything else is context ruled off beneath it. */}
+            {/*
+             * Two questions, not one summary.
+             *
+             * What is still owed is the figure a merchant opens the page for, so
+             * it leads. What is at risk is the figure they can act on, so it sits
+             * beside it rather than being flattened into a row of four where the
+             * only number worth reacting to has the same weight as a running
+             * total. When nothing is at risk that pairing says so plainly, which
+             * is the answer a merchant most wants and the one a stat grid buries.
+             */}
             <header className="border-b border-white/10 pb-10">
-                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-white/45">
-                    Outstanding across active plans
-                </p>
-                <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-2">
-                    <span className="font-mono text-[clamp(2.75rem,7vw,4.5rem)] font-medium leading-none tabular-nums tracking-[-0.03em]">
-                        {isLoading ? <Skeleton w="9ch" /> : data?.outstandingDisplay ?? '0.00'}
-                    </span>
-                    <span className="font-mono text-lg text-white/45">USDC</span>
+                <div className="grid gap-8 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] sm:gap-14">
+                    <div>
+                        <p className="label">Outstanding across active plans</p>
+                        <div className="mt-3 flex flex-wrap items-baseline gap-x-3">
+                            <span className="figure-lg font-mono text-[clamp(2.75rem,7vw,4.5rem)] font-medium">
+                                {isLoading ? <Skeleton w="9ch" /> : data?.outstandingDisplay ?? '0.00'}
+                            </span>
+                            <span className="font-mono text-lg text-white/40">USDC</span>
+                        </div>
+                    </div>
+
+                    <div className="sm:border-l sm:border-white/10 sm:pl-14">
+                        <p className="label">At risk</p>
+                        <div className="mt-3 flex items-baseline gap-2.5">
+                            <span
+                                className={`figure font-mono text-3xl font-medium ${
+                                    atRisk > 0 ? 'text-amber-300' : 'text-white/70'
+                                }`}
+                            >
+                                {isLoading ? <Skeleton w="6ch" /> : data?.atRiskDisplay ?? '0.00'}
+                            </span>
+                            {!isLoading && atRisk === 0 && (
+                                <span className="size-1.5 rounded-full bg-primary" aria-hidden />
+                            )}
+                        </div>
+                        <p className="mt-2 max-w-[30ch] text-[13px] leading-relaxed text-white/45">
+                            {isLoading
+                                ? ''
+                                : atRisk > 0
+                                  ? 'In dunning. The keeper is retrying these on a backoff.'
+                                  : 'Nothing in dunning. Every plan is collecting on schedule.'}
+                        </p>
+                    </div>
                 </div>
 
-                <dl className="mt-9 grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-4">
-                    <Figure label="Settled to you" value={data?.settledDisplay} loading={isLoading} />
-                    <Figure label="Collected this week" value={data?.collectedThisWeekDisplay} loading={isLoading} />
-                    <Figure label="At risk" value={data?.atRiskDisplay} loading={isLoading} tone="warn" />
-                    <Figure
+                {/* Running totals. Context for the two figures above, not peers of
+                    them, so they read as a line rather than as more cards. */}
+                <dl className="mt-9 flex flex-wrap gap-x-10 gap-y-5 text-sm">
+                    <InlineFigure label="Settled to you" value={data?.settledDisplay} loading={isLoading} />
+                    <InlineFigure label="Collected this week" value={data?.collectedThisWeekDisplay} loading={isLoading} />
+                    <InlineFigure
                         label="Collection rate"
                         value={data ? `${data.collectionRate.toFixed(1)}%` : undefined}
                         loading={isLoading}
+                        accent={data ? data.collectionRate >= 95 : false}
                     />
                 </dl>
             </header>
@@ -348,6 +385,27 @@ function Figure({
                 }`}
             >
                 {loading ? <Skeleton w="6ch" /> : value ?? '—'}
+            </dd>
+        </div>
+    );
+}
+
+function InlineFigure({
+    label,
+    value,
+    loading,
+    accent,
+}: {
+    label: string;
+    value?: string;
+    loading?: boolean;
+    accent?: boolean;
+}) {
+    return (
+        <div className="flex items-baseline gap-2.5">
+            <dt className="text-white/40">{label}</dt>
+            <dd className={`figure font-mono font-medium ${accent ? 'text-primary' : 'text-white/85'}`}>
+                {loading ? <Skeleton w="5ch" /> : (value ?? '—')}
             </dd>
         </div>
     );

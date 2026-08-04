@@ -4,124 +4,233 @@ export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Code2, ShieldCheck, Zap, ShoppingBag } from 'lucide-react';
+import useSWR from 'swr';
+import { ArrowRight, ShoppingBag } from 'lucide-react';
+
+/**
+ * The front door.
+ *
+ * What stood here was a splash: a logo, a tagline about "the complete payment
+ * stack", three same-size feature cards, and a code sample importing a
+ * component that does not exist from a package that is not ours. It named no
+ * product and offered no evidence, and the one concrete thing on it would not
+ * have compiled.
+ *
+ * A merchant deciding whether to integrate wants three answers: what this does
+ * for my checkout, whether it actually works, and what I have to write. Those,
+ * in that order -- and the middle one is answered from the live book rather
+ * than with an adjective.
+ */
+
+const fetcher = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+    return res.json();
+};
+
+type Health = {
+    status: string;
+    book: {
+        activeLoans: number;
+        overdueInstalments: number;
+        inDunning: number;
+        liquidationCandidates: number;
+        collectionRate: number;
+    };
+};
+
+const SNIPPET = `import { PayWithPolarisBNPL } from "@polarispay/sdk";
+
+// Reads the shopper's limit from the chain, shows the
+// four-payment schedule, and opens the plan.
+<PayWithPolarisBNPL
+  merchant="0xYourPayoutAddress"
+  amount="180.00"
+  orderId="ORDER-1042"
+  onSuccess={(r) => console.log(r.transactionHash)}
+/>`;
 
 export default function Home() {
+    const { data: health } = useSWR<Health>('/api/keeper/health', fetcher, {
+        refreshInterval: 60_000,
+        shouldRetryOnError: false,
+    });
+
     return (
-        <div className="min-h-screen bg-background text-foreground selection:bg-primary/30 selection:text-white font-display overflow-x-hidden grid-bg">
-
-            {/* Hero Section */}
-            <section className="relative pt-32 pb-40 px-6 glow-bg">
-                <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-
-                <div className="max-w-4xl mx-auto text-center relative z-10">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-[0.2em] mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        <Zap className="w-3 h-3" />
-                        Polaris Protocol v1.0
-                    </div>
-
-                    <div className="flex justify-center mb-10 animate-in fade-in slide-in-from-bottom-6 duration-1000">
-                        <Image
-                            src="/logo.png"
-                            alt="Polaris Logo"
-                            width={600}
-                            height={150}
-                            className="w-full max-w-[500px] h-auto"
-                            priority
-                        />
-                    </div>
-
-                    <p className="text-lg text-white/50 max-w-2xl mx-auto mb-10 leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100 font-medium">
-                        The complete payment stack for web3 developers. Integrate decentralized payments,
-                        generate bills, and settle on-chain instantly on Ethereum Sepolia.
+        <div className="min-h-screen bg-background font-display text-foreground selection:bg-primary/30">
+            <main className="mx-auto max-w-[1180px] px-6 pb-28 md:px-10">
+                {/* The claim is specific -- split a checkout into four -- because
+                    "complete payment stack" is what every one of these says. */}
+                <section className="pt-24 pb-20 md:pt-32">
+                    <Image
+                        src="/logo.png"
+                        alt="Polaris"
+                        width={180}
+                        height={48}
+                        className="h-10 w-auto"
+                        priority
+                    />
+                    <h1 className="mt-10 max-w-[16ch] text-[clamp(2.5rem,6.5vw,4.5rem)] font-semibold leading-[1.02] tracking-[-0.035em]">
+                        Let shoppers pay in four.
+                    </h1>
+                    <p className="mt-6 max-w-[54ch] text-[17px] leading-relaxed text-foreground/55">
+                        A buy-now-pay-later checkout for on-chain stores. Your shopper&apos;s limit
+                        is underwritten from their own wallet history, the instalments collect
+                        themselves, and you are settled without chasing anyone.
                     </p>
 
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-200">
-                        <Link
-                            href="/dashboard"
-                            className="bg-primary text-black font-black px-10 py-5 rounded-xl hover:scale-105 transition-all active:scale-95 flex items-center gap-2 w-full sm:w-auto justify-center uppercase tracking-tighter shadow-[0_8px_30px_rgba(166,242,74,0.3)]"
-                        >
-                            Developer Portal <ArrowRight className="w-4 h-4" />
-                        </Link>
+                    <div className="mt-10 flex flex-wrap gap-3">
                         <Link
                             href="/store"
-                            className="bg-white/5 border border-white/10 text-white font-bold px-10 py-5 rounded-xl hover:bg-white/10 transition-all active:scale-95 flex items-center gap-2 w-full sm:w-auto justify-center uppercase tracking-tighter"
+                            className="inline-flex items-center gap-2 rounded-[calc(var(--radius)-2px)] bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 active:scale-[0.99]"
                         >
-                            <ShoppingBag className="w-4 h-4" /> Try the store
+                            <ShoppingBag className="size-4" />
+                            Try the store
+                        </Link>
+                        <Link
+                            href="/dashboard"
+                            className="inline-flex items-center gap-2 rounded-[calc(var(--radius)-2px)] border border-foreground/12 px-6 py-3.5 text-sm font-medium text-foreground/75 transition-colors hover:border-foreground/28 hover:text-foreground"
+                        >
+                            Merchant console
+                            <ArrowRight className="size-4" />
                         </Link>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            {/* Features Grid */}
-            <section className="border-t border-white/5 py-24 bg-black/20">
-                <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <FeatureCard
-                        icon={<Code2 className="w-6 h-6 text-primary" />}
-                        title="Dev-First SDK"
-                        description="Drop-in React components. Type-safe APIs. Built for the modern stack."
-                    />
-                    <FeatureCard
-                        icon={<ShieldCheck className="w-6 h-6 text-primary" />}
-                        title="Non-Custodial"
-                        description="Funds settle directly to your smart contract. You own the private keys."
-                    />
-                    <FeatureCard
-                        icon={<Zap className="w-6 h-6 text-primary" />}
-                        title="Instant Sync"
-                        description="Powered by Ethereum Sepolia for secure and transparent settlements."
-                    />
-                </div>
-            </section>
+                {/* Proof before persuasion, taken from the running keeper rather
+                    than written down here. */}
+                {health && (
+                    <section className="border-y border-foreground/8 py-10">
+                        <dl className="flex flex-wrap gap-x-14 gap-y-8">
+                            <Proof
+                                term="Collected on time"
+                                value={`${health.book.collectionRate.toFixed(0)}%`}
+                                accent={health.book.collectionRate >= 95}
+                            />
+                            <Proof term="Plans collecting" value={String(health.book.activeLoans)} />
+                            <Proof term="In dunning" value={String(health.book.inDunning)} />
+                            <Proof
+                                term="Written off"
+                                value={String(health.book.liquidationCandidates)}
+                            />
+                        </dl>
+                        <p className="mt-7 max-w-[62ch] text-sm leading-relaxed text-foreground/45">
+                            Read from the live book, not a marketing figure. Every instalment behind
+                            these was charged by a keeper running on KeeperHub, with gas sponsored,
+                            and each one has a transaction you can open.
+                        </p>
+                    </section>
+                )}
 
-            {/* Code Snippet */}
-            <section className="py-24 px-6 relative">
-                <div className="absolute inset-0 bg-primary/2 h-full w-full pointer-events-none" />
-                <div className="max-w-4xl mx-auto relative z-10">
-                    <div className="text-center mb-12">
-                        <h2 className="text-4xl font-black uppercase italic tracking-tighter mb-4">Integration is Simple</h2>
-                        <p className="text-white/40 font-medium">Just import the component and pass your API credentials.</p>
+                {/* Sequence, so the numbering carries real order rather than
+                    decorating three interchangeable cards. */}
+                <section className="py-20">
+                    <h2 className="text-[clamp(1.5rem,3vw,2rem)] font-semibold tracking-[-0.02em]">
+                        What happens at checkout
+                    </h2>
+                    <ol className="mt-10 space-y-px overflow-hidden rounded-[var(--radius)] border border-foreground/8">
+                        <Step
+                            n={1}
+                            title="The chain underwrites the shopper"
+                            body="No application and no bureau. The limit comes from the wallet's own repayment history, so a first-time shopper starts at a baseline and earns their way up."
+                        />
+                        <Step
+                            n={2}
+                            title="They approve once, and the plan opens"
+                            body="One signature covers the whole schedule. Nothing is locked up front, and the shopper never pays gas to start a plan."
+                        />
+                        <Step
+                            n={3}
+                            title="The keeper collects, and you are settled"
+                            body="Each instalment is charged on its due date. A charge that fails enters a retry ladder rather than being written off, and what is collected is paid out to you on schedule."
+                        />
+                    </ol>
+                </section>
+
+                {/* The integration, in the code that actually ships. */}
+                <section className="grid gap-10 border-t border-foreground/8 pt-20 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-16">
+                    <div>
+                        <h2 className="text-[clamp(1.5rem,3vw,2rem)] font-semibold tracking-[-0.02em]">
+                            One component
+                        </h2>
+                        <p className="mt-5 max-w-[46ch] leading-relaxed text-foreground/55">
+                            It reads the shopper&apos;s limit itself and falls back to paying in full
+                            when the limit will not stretch. If you want your own UI, the same
+                            operations are available headless, and to an agent over MCP.
+                        </p>
+                        <Link
+                            href="/store"
+                            className="mt-7 inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
+                        >
+                            See it running
+                            <ArrowRight className="size-3.5" />
+                        </Link>
                     </div>
 
-                    <div className="bg-[#0d1117] border border-primary/20 rounded-2xl p-6 md:p-10 shadow-3xl relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 px-4 py-2 bg-primary/10 text-primary text-[10px] uppercase tracking-widest font-bold rounded-bl-xl border-b border-l border-primary/20">
-                            React / Next.js
+                    <div className="surface overflow-hidden">
+                        <div className="flex items-center gap-2 border-b border-foreground/8 px-4 py-3">
+                            <span className="size-2 rounded-full bg-foreground/15" />
+                            <span className="size-2 rounded-full bg-foreground/15" />
+                            <span className="size-2 rounded-full bg-foreground/15" />
+                            <span className="ml-2 font-mono text-[11px] text-foreground/40">
+                                checkout.tsx
+                            </span>
                         </div>
-                        <pre className="font-mono text-sm md:text-base text-primary/80 overflow-x-auto">
-                            <code>
-                                {`import { PayWithPolaris } from '@polaris/sdk';
-
-export function Checkout() {
-  return (
-    <PayWithPolaris
-      apiKey="pk_live_..."
-      amount={49.99}
-      details="Subscription"
-    />
-  );
-}`}
+                        <pre className="overflow-x-auto px-4 py-4">
+                            <code className="font-mono text-[12.5px] leading-relaxed text-foreground/75">
+                                {SNIPPET}
                             </code>
                         </pre>
                     </div>
-                </div>
-            </section>
+                </section>
+            </main>
 
-            <footer className="border-t border-white/5 py-12 text-center text-white/20 text-[10px] uppercase tracking-[0.3em] font-bold">
-                <p>&copy; 2026 Polaris Protocol // Built on Ethereum Sepolia</p>
+            <footer className="border-t border-foreground/8">
+                <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-4 px-6 py-8 md:px-10">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/30">
+                        Polaris · Sepolia
+                    </p>
+                    <a
+                        href="https://sepolia.etherscan.io/address/0x5d6F049f791C40b09701129b3663d1A8ce9eAB86"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/30 transition-colors hover:text-foreground/60"
+                    >
+                        Contracts
+                    </a>
+                </div>
             </footer>
         </div>
     );
 }
 
-function FeatureCard({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
+function Proof({ term, value, accent }: { term: string; value: string; accent?: boolean }) {
     return (
-        <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-primary/30 transition-all group hover:-translate-y-1">
-            <div className="w-12 h-12 rounded-xl bg-primary/5 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-primary/10 transition-all">
-                {icon}
-            </div>
-            <h3 className="text-xl font-black uppercase italic mb-3 group-hover:text-primary transition-colors">{title}</h3>
-            <p className="text-white/40 leading-relaxed text-sm font-medium">{description}</p>
+        <div>
+            <dt className="label">{term}</dt>
+            <dd
+                className={`figure mt-2 text-[clamp(1.5rem,3vw,2rem)] font-semibold ${
+                    accent ? 'text-primary' : ''
+                }`}
+            >
+                {value}
+            </dd>
         </div>
+    );
+}
+
+function Step({ n, title, body }: { n: number; title: string; body: string }) {
+    return (
+        <li className="flex gap-5 bg-card/40 px-5 py-6 sm:gap-7 sm:px-7">
+            <span className="figure shrink-0 font-mono text-sm text-primary/70">
+                {String(n).padStart(2, '0')}
+            </span>
+            <div className="min-w-0">
+                <h3 className="font-medium leading-tight">{title}</h3>
+                <p className="mt-2 max-w-[64ch] text-sm leading-relaxed text-foreground/50">
+                    {body}
+                </p>
+            </div>
+        </li>
     );
 }
