@@ -102,6 +102,7 @@ pnpm test
 ## Docs
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [100-feature roadmap](docs/ROADMAP-100.md) — every entry mapped to the KeeperHub primitive that powers it
 - [KeeperHub surface map](docs/KEEPERHUB.md)
 
 ## License
