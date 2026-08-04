@@ -62,6 +62,9 @@ Status counts: **57 shipped · 17 wired · 27 planned**
 | 37 | Terminal status reconciliation — never infers success from wallet state | Shipped |
 | 38 | Sponsored-execution awareness (nonce/balance/tx-list do not move) | Shipped |
 | 39 | Atomic `check-and-execute` liquidation | Shipped |
+| 39a | Atomic `check-and-execute` subscription charge, so a cancellation cannot be raced | Shipped |
+| 39b | Subscription candidates read from chain, not a book that cannot see self-served subscribers | Shipped |
+| 39c | Close-out sweep, so a plan never hangs open on a rounding residue | Shipped |
 | 40 | Route-correct argument encoding (stringified scalars, stringified arg array) | Shipped |
 | 41 | Spend-cap 403 distinguished from auth 403 | Shipped |
 | 42 | `Retry-After` honoured on rate limits | Shipped |
@@ -165,7 +168,8 @@ Status counts: **57 shipped · 17 wired · 27 planned**
 - Merchant settlement executed through KeeperHub, including a retry after a transport timeout.
 - Liquidation with the condition flipping across all three phases.
 - An agent paying and locking collateral entirely over MCP.
-- A subscription created and discovered from chain by the keeper, correctly declined while outside its charge window.
+- A subscription charged by the keeper. The timing is the evidence: with the period boundary at 14:36:48, the pass at **14:36:41 declined** and the next one **charged**, gas sponsored — `periodsCharged` 2, `missedCharges` 0, next boundary advanced exactly one period.
+- A plan opened by buying from the demo storefront, collected to completion, and its 2-wei residual swept — releasing 900.00 of collateral that was otherwise locked indefinitely.
 - The reconciler reporting **no drift** between the book and the chain across every loan.
 
 **A live MongoDB Atlas connection** with all 14 indexes created.
