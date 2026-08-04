@@ -75,18 +75,35 @@ Both ledgers were read from the running apps, and every figure traces to a
 Sepolia transaction. `db:purge` removes any row the chain does not back; it was
 run, and the book now holds exactly the two loans that exist on chain.
 
-## Not yet exercised on chain
+## Executed through KeeperHub
 
-**Liquidation.** `GRACE_PERIOD` is 3 days, so a live demonstration needs a loan left unpaid for that long. The path is covered by contract tests using time travel — including the case that motivates the design, where a last-second repayment makes a loan un-liquidatable again — but no liquidation transaction exists on Sepolia yet.
+`pnpm keeper:collect` with `KEEPER_DRY_RUN=false`. Three instalments collected in one pass, **every one gas-sponsored by KeeperHub's Gas Station** — the keeper wallet paid nothing.
 
-**Execution through KeeperHub.** Every transaction above was signed directly with ethers.
+| Action | Transaction | Block | Gas |
+|---|---|---|---|
+| loan 2, instalment 3 | [`0xb8847031…`](https://sepolia.etherscan.io/tx/0xb88470313f58f4c19e44560c2c295adcdf50bcca148e306f2f447eb29e5bc5db) | 11415202 | 149,540 |
+| loan 1, instalment 3 | [`0x07e4bc06…`](https://sepolia.etherscan.io/tx/0x07e4bc06ba7e7267b85cd58d9fd23fadf136abdb0853f987fb513535ea42b9ee) | 11415203 | 109,952 |
+| loan 1, instalment 4 | [`0x38e2126e…`](https://sepolia.etherscan.io/tx/0x38e2126efdff6ef5d0ab561abfd39592fd3081fcd365800c389ef1473000615b) | 11415204 | 114,647 |
 
-This is worth stating precisely, because it is easy to overstate. What is missing is the execution *transport*, not a product capability:
+All three confirmed `status: SUCCESS` on chain. **Loan #1 closed at 4/4 with zero outstanding** — a BNPL plan opened at checkout and retired entirely by the keeper.
 
-- The collection **logic** is proven — an instalment is drawn against the buyer's approval by a third party, on chain, and the ledgers reflect it.
-- The KeeperHub **client** is proven against the real API for everything reachable without credentials: the 401 is classified as `auth`, a rejected key fails in exactly one request, and a non-`kh_` credential never reaches the network (`pnpm --filter @polarispay/keeperhub test:live`).
-- What has **not** happened is a single authenticated call. Routing collection through KeeperHub needs an organization API key (`kh_…`), which requires an account and a 2FA step-up. No such key exists on this machine.
+Each charge ran the full path: simulate against current state, broadcast with a per-attempt idempotency key, poll `/api/execute/{id}/status` to a terminal state, write a receipt. The keeper wallet's nonce and balance did not move, because a sponsored execution runs through a smart account — which is exactly why the client never infers success from wallet state.
 
-So PolarisPay works end to end; the specific path a production keeper would use to broadcast has not been exercised. For the KeeperHub hackathon that distinction matters entirely — a submission is judged on a transaction that executed *through KeeperHub* — which is why it is called out here rather than buried.
+State after the pass, read back from chain and rendered by both apps:
 
-With a key in `.env` and `KEEPER_DRY_RUN=false`, `pnpm keeper:collect` closes it: loan #1 has one due instalment and loan #2 has two.
+| | |
+|---|---|
+| Merchant ledger | 20.00 outstanding, **85.7% collection rate**, 1 active plan |
+| Borrower ledger | score **522**, 179.99 available of a 200.00 limit, 6 on-time |
+| Loan 1 | `repaid`, 4/4, 0.00 outstanding |
+| Loan 2 | `active`, 2/3, 20.00 outstanding |
+
+The live test suite runs authenticated too: `pnpm --filter @polarispay/keeperhub test:live` — 7 passing, none skipped.
+
+## Remaining gap
+
+**Liquidation fired *by the keeper*.** Liquidation itself is proven on chain — the demo engine at `0x032d5241F0761a593fe3595c7418153dA7d5f70d` walked the condition through all three phases and executed a real liquidation, and the path is covered by contract tests using time travel including the case that motivates the design, where a last-second repayment makes a loan un-liquidatable again.
+
+What has not happened is the keeper firing that liquidation through KeeperHub's `check-and-execute` against the production engine, because its 3-day grace period means a plan has to sit unpaid for three days first. The code path is identical to the collection path that is now fully exercised; only the trigger condition differs.
+
+Collection through KeeperHub is complete: simulate, sponsored broadcast, terminal reconciliation, receipt.

@@ -2,7 +2,7 @@
 
 100 features across the PolarisPay stack. **Shipped** means the code is in this repo and exercised by a test or a run. **Wired** means the plumbing exists and needs data or a deployment to be live. **Planned** means designed but not built.
 
-Status counts: **44 shipped · 18 wired · 38 planned**
+Status counts: **46 shipped · 17 wired · 38 planned**
 
 ---
 
@@ -65,6 +65,7 @@ Status counts: **44 shipped · 18 wired · 38 planned**
 | 43 | Structured receipts joining execution to loan and installment | Shipped |
 | 44 | Gas-sponsorship eligibility check at startup | Shipped |
 | 45 | KeeperHub workflow JSON for collection and liquidation | Wired |
+| 45b | Live sponsored collection through KeeperHub, end to end | Shipped |
 | 46 | Private mempool routing for liquidations | Planned |
 | 47 | Tempo atomic batch payout for merchant settlement | Planned |
 | 48 | x402 monetization — sell the collection workflow to other credit protocols | Planned |

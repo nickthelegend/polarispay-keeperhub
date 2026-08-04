@@ -20,7 +20,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { KeeperHubClient, KeeperHubError } from "../dist/index.js";
+import { KeeperHubClient, KeeperHubError, LOAN_ENGINE_ABI } from "../dist/index.js";
 
 const BASE = process.env.KEEPERHUB_BASE_URL ?? "https://app.keeperhub.com";
 const API_KEY = process.env.KEEPERHUB_API_KEY;
@@ -134,12 +134,54 @@ describe("live KeeperHub API - authenticated surface", () => {
     }
 
     const client = new KeeperHubClient({ apiKey: API_KEY!, baseUrl: BASE });
+
+    // The ABI is passed explicitly. KeeperHub can auto-fetch it for a verified
+    // contract, but this deployment is unverified on Etherscan, so omitting it
+    // is a 400 on `abi` -- which is the correct server behaviour, not a bug.
     const sim = await client.simulateContractCall({
       contractAddress: engine,
       chainId: 11_155_111,
       functionName: "checkLiquidatable",
       functionArgs: '["1"]',
+      abi: LOAN_ENGINE_ABI,
     });
+
     assert.ok(sim, "simulation should return a result");
+    // Loan 1 is fully repaid, so the keeper's condition must read false.
+    assert.equal(
+      sim.result,
+      false,
+      "a repaid loan must not be liquidatable"
+    );
+  });
+
+  it("classifies a missing ABI on an unverified contract as a validation error", async (t) => {
+    if (!hasKey) {
+      t.skip("KEEPERHUB_API_KEY not set");
+      return;
+    }
+    const engine = process.env.POLARIS_LOAN_ENGINE;
+    if (!engine) {
+      t.skip("POLARIS_LOAN_ENGINE not set");
+      return;
+    }
+
+    const client = new KeeperHubClient({ apiKey: API_KEY!, baseUrl: BASE });
+    await assert.rejects(
+      () =>
+        client.simulateContractCall({
+          contractAddress: engine,
+          chainId: 11_155_111,
+          functionName: "checkLiquidatable",
+          functionArgs: '["1"]',
+        }),
+      (err: unknown) => {
+        assert.ok(err instanceof KeeperHubError);
+        assert.equal(err.kind, "validation");
+        assert.equal(err.field, "abi");
+        assert.equal(err.retryable, false, "a missing ABI will not fix itself");
+        return true;
+      }
+    );
   });
 });
