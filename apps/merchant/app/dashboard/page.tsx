@@ -133,6 +133,8 @@ export function Ledger({
                 </dl>
             </header>
 
+            <KeeperStrip />
+
             <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
                 <h2 className="text-lg font-semibold tracking-tight">Payment plans</h2>
                 <nav className="flex items-center gap-1" aria-label="Filter plans">
@@ -181,6 +183,61 @@ export function Ledger({
                 </table>
             </div>
         </>
+    );
+}
+
+type Health = {
+    status: 'healthy' | 'degraded' | 'down' | 'unknown';
+    jobs: Array<{ job: string; status: string; minutesSinceLastRun: number | null }>;
+    incidents: string[];
+};
+
+/**
+ * Whether anything is collecting right now.
+ *
+ * A merchant's real question is not "is the API up" but "is my money being
+ * chased". Silence is the failure that costs the most, so a stopped keeper has
+ * to be visible here rather than simply showing nothing.
+ */
+function KeeperStrip() {
+    const { data } = useSWR<Health>('/api/keeper/health', (u: string) => fetch(u).then((r) => r.json()), {
+        refreshInterval: 30_000,
+    });
+    if (!data?.jobs) return null;
+
+    const tone = {
+        healthy: 'text-primary',
+        degraded: 'text-amber-300',
+        down: 'text-rose-300',
+        unknown: 'text-white/35',
+    }[data.status];
+
+    const label = {
+        healthy: 'Collections running',
+        degraded: 'Collections degraded',
+        down: 'Collections stopped',
+        unknown: 'No keeper activity yet',
+    }[data.status];
+
+    const collection = data.jobs.find((j) => j.job === 'collection');
+    const ago =
+        collection?.minutesSinceLastRun === null || collection?.minutesSinceLastRun === undefined
+            ? null
+            : collection.minutesSinceLastRun < 1
+              ? 'just now'
+              : `${collection.minutesSinceLastRun}m ago`;
+
+    return (
+        <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-white/[0.06] pt-5">
+            <span className={`inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] ${tone}`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
+                {label}
+            </span>
+            {ago && <span className="font-mono text-[11px] text-white/35">last pass {ago}</span>}
+            {data.incidents.length > 0 && (
+                <span className="font-mono text-[11px] text-amber-300/80">{data.incidents[0]}</span>
+            )}
+        </div>
     );
 }
 

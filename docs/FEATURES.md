@@ -2,7 +2,7 @@
 
 100 features across the PolarisPay stack. **Shipped** means the code is in this repo and exercised by a test or a run. **Wired** means the plumbing exists and needs data or a deployment to be live. **Planned** means designed but not built.
 
-Status counts: **56 shipped · 17 wired · 28 planned**
+Status counts: **57 shipped · 17 wired · 27 planned**
 
 ---
 
@@ -127,6 +127,7 @@ Status counts: **56 shipped · 17 wired · 28 planned**
 | 85 | Deep link to the settlement transaction on Etherscan | Shipped |
 | 86 | Tabular numerals throughout so figures align down the column | Shipped |
 | 87 | Auto-refresh every 20s | Shipped |
+| 87b | Live keeper status on the ledger — is anything collecting right now | Shipped |
 | 88 | Merchant onboarding, hashed API keys, rotation | Shipped |
 | 89 | Webhook delivery, HMAC signature, replay window, retry policy | Shipped |
 | 90 | Settlement export (CSV) | Shipped |
