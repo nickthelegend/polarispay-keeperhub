@@ -104,6 +104,28 @@ pnpm test
 
 **107 tests** — 60 Solidity, 27 engine, 13 security, 7 live against the real KeeperHub API. They cover the paths where a bug costs real money, and every exploit an audit reproduced now has a regression test: dust repayments buying liquidation immunity, self-liquidation writing off debt for free, a protocol fee charged out of principal, simulate-gating, idempotency scoping, terminal reconciliation, and the dunning branch.
 
+## Agents get credit, not just a wallet
+
+An agent can hold a wallet and spend from it, but it cannot get credit — every
+machine-to-machine purchase today is prepay, and an agent that runs out
+mid-task simply stops. `@polarispay/mcp` exposes the credit line as MCP tools,
+so an agent gets what a human gets at checkout.
+
+Verified on live Sepolia, using only those tools:
+
+```
+1. checks credit       score 600 · limit 500.00 · available 500.00
+2. can afford 12.00?   true
+3. pays merchant       12.00 · gasSponsored=true
+4. raises its limit    locked 100.00 → +150.00 credit
+5. re-checks credit    limit 500.00 → 650.00
+```
+
+Both writes gas-sponsored — the agent paid no ETH. Every write simulates first,
+carries a per-attempt idempotency key, reconciles to a terminal status, and
+lands inside the organisation's spending cap, so a runaway agent cannot exceed
+it. See [packages/mcp](packages/mcp/README.md).
+
 ## The three payment modes
 
 ```ts
