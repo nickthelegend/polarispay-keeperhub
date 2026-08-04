@@ -139,7 +139,7 @@ Status counts: **57 shipped · 17 wired · 27 planned**
 | # | Feature | Status |
 |---|---|---|
 | 93 | `<PayWithPolarisBNPL />` checkout with on-chain eligibility check | Shipped |
-| 94 | Shopify payments app and checkout UI extension | Wired |
+| 94 | Shopify payments app and checkout UI extension | Planned |
 | 95 | Sepolia deployment scripts with address output | Shipped |
 | 96 | Faucet-enabled test stablecoin so a demo borrower can self-fund | Shipped |
 | 97 | Merchant registry with per-merchant origination caps | Shipped |
@@ -149,10 +149,23 @@ Status counts: **57 shipped · 17 wired · 27 planned**
 
 ---
 
-## What the 38 shipped features are proven by
+## What the 85 shipped features are proven by
 
-- **19 Solidity tests** — origination, credit limits, collection by a third party, score movement, exact loan closure, and every liquidation edge including a last-second repayment making a loan un-liquidatable again.
-- **19 TypeScript tests** — argument encoding, idempotency scoping, no-broadcast-on-failed-simulation, terminal reconciliation with the sponsored flag, atomic liquidation, dunning branches, and retry classification.
-- **A live MongoDB Atlas connection** with all 14 indexes created.
-- **A running keeper** — `doctor` and `collect` execute end to end against the loan book.
-- **A design detector pass** with zero findings on the redesigned dashboard.
+**149 tests**, all passing:
+
+- **70 Solidity** — origination, credit limits, collection by a third party, score movement, exact loan closure, subscription periods and the miss ladder, and every liquidation edge including a last-second repayment making a loan un-liquidatable again. Several are regressions for exploits that were found and fixed: dust-payment immunity, free self-liquidation, and a fee charged against the wrong base.
+- **31 KeeperHub** — argument encoding, per-attempt idempotency scoping, no-broadcast-on-failed-simulation, terminal reconciliation with the sponsored flag, atomic check-and-execute for both liquidation and subscription charges, dunning branches, and retry classification.
+- **20 underwriting** — signal caps, the sybil check, and degrading to the baseline rather than failing when every source is down.
+- **20 data layer** — webhook signing and replay bounds, API-key hashing, and the loan-total arithmetic that keeps the book consistent with the chain.
+- **8 MCP** — tool discovery, live Sepolia reads, and refusing to spend without credentials.
+
+**And on live Sepolia**, not in a fixture:
+
+- Full plan lifecycle — opened through the checkout API, all four instalments collected by the keeper through KeeperHub with **gas sponsored**, loan closed at exactly the amount owed, score moved 696 → 732.
+- Merchant settlement executed through KeeperHub, including a retry after a transport timeout.
+- Liquidation with the condition flipping across all three phases.
+- An agent paying and locking collateral entirely over MCP.
+- A subscription created and discovered from chain by the keeper, correctly declined while outside its charge window.
+- The reconciler reporting **no drift** between the book and the chain across every loan.
+
+**A live MongoDB Atlas connection** with all 14 indexes created.

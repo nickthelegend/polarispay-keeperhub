@@ -53,10 +53,10 @@ packages/contracts    LoanEngine · ScoreManager · CollateralVault · PolarisPa
 packages/keeperhub    the execution engine — simulate, idempotency, receipts
 packages/db           MongoDB: loan book, receipts, settlements, webhooks
 packages/sdk          createPolaris() — pay, subscribe, payLater in one call each
-keeper/               the runnable keeper: collect · liquidate · settle
-apps/merchant         merchant portal, checkout API, collections ledger
+packages/mcp          the same operations, exposed to agents over MCP
+keeper/               the runnable keeper: collect · subscriptions · liquidate · settle
+apps/merchant         merchant portal, checkout API, collections ledger, demo store
 apps/core             borrower app: credit line, plans, collateral
-apps/shopify          Shopify payments app
 docs/                 architecture, deployment, surface map, roadmap
 ```
 

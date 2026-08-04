@@ -9,18 +9,18 @@ PolarisPay is the payments product on top: checkout, BNPL, merchant settlement. 
 ```mermaid
 flowchart TB
     subgraph client["Checkout"]
-        SDK["packages/sdk<br/>PayWithPolaris"]
-        SHOP["apps/shopify<br/>checkout extension"]
+        SDK["packages/sdk<br/>PayWithPolarisBNPL"]
+        MCP["packages/mcp<br/>agent tools"]
     end
 
     subgraph product["PolarisPay"]
         MERCH["apps/merchant<br/>portal · bills · webhooks"]
-        CORE["apps/core<br/>pools · FHEVM vaults"]
+        CORE["apps/core<br/>credit · limits · collateral"]
         BOOK[("Loan book<br/>installments · dunning state")]
     end
 
     subgraph keeperlayer["The keeper"]
-        KEEP["keeper/<br/>collect · liquidate · settle"]
+        KEEP["keeper/<br/>collect · charge · liquidate · settle"]
         ENG["@polarispay/keeperhub<br/>simulate · idempotency · receipts"]
     end
 
@@ -101,15 +101,15 @@ Failures are classified by cause, because the right response differs completely:
 
 ## Data flow into the loan book
 
-The loan book is the keeper's working state: which installments exist, when they are due, how many attempts each has had, and when the next attempt is allowed. `LoanBook` is a narrow interface with a file-backed implementation so the keeper runs end to end with no database; production swaps in the Supabase store the Polaris apps already use.
+The loan book is the keeper's working state: which installments exist, when they are due, how many attempts each has had, and when the next attempt is allowed. `LoanBook` is a narrow interface with a file-backed implementation so the keeper runs end to end with no database, and a MongoDB implementation that is what actually runs.
 
 The dunning back-off lives here rather than in the client, because it is a business schedule and not a network one — a borrower who was short an hour ago is probably still short, and re-charging burns rate limit for nothing.
 
-## Where the FHEVM side fits
+## Why the keeper never decides
 
-`apps/core` carries the confidential track: private collateral vaults, private borrow manager, private liquidation engine. Encrypted credit state and a keeper that must evaluate a liquidation condition on chain are in tension — a keeper cannot branch on a value it cannot read.
+A keeper must decide whether to liquidate, and the honest way to do that is not to decide at all. `checkLiquidatable` is evaluated inside the contract and returns a plain boolean; KeeperHub checks it and acts on the answer within a single call. The keeper never reads state, forms a view, and then acts on a view that has since gone stale — which is the window a borrower repaying one second before a liquidation would otherwise fall into.
 
-The resolution in this design is that the *condition* is evaluated inside the contract (`checkLiquidatable` returns a plain boolean) while the *inputs* to that condition stay encrypted. KeeperHub only ever sees the boolean. This keeps the confidential model intact without the keeper needing a decryption path.
+The same shape covers subscriptions: `isChargeDue` is the condition, `chargeDue` is the action, and a subscription cancelled between the two is simply not charged.
 
 ## Design decisions
 

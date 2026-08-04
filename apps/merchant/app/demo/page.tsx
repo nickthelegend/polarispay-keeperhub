@@ -10,11 +10,11 @@ import { Ledger } from '../dashboard/page';
 /**
  * The collections ledger with no wallet connection required.
  *
- * The real dashboard sits behind Privy, which is correct for a merchant
- * managing their own money and wrong for anyone evaluating the product. This
- * renders the identical component against the identical API for a fixed demo
- * merchant, so the ledger can be seen — and recorded — without an app ID or a
- * wallet. It is read-only by construction: there is nothing here to act on.
+ * The real dashboard is wallet-gated, which is correct for a merchant managing
+ * their own money and wrong for anyone evaluating the product. This renders the
+ * identical component against the identical API for a fixed demo merchant, so
+ * the ledger can be seen — and recorded — without a wallet at all. It is
+ * read-only by construction: there is nothing here to act on.
  */
 
 const DEMO_MERCHANT_WALLET =
