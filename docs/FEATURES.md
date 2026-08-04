@@ -2,7 +2,7 @@
 
 100 features across the PolarisPay stack. **Shipped** means the code is in this repo and exercised by a test or a run. **Wired** means the plumbing exists and needs data or a deployment to be live. **Planned** means designed but not built.
 
-Status counts: **50 shipped · 17 wired · 34 planned**
+Status counts: **54 shipped · 17 wired · 30 planned**
 
 ---
 
@@ -47,9 +47,9 @@ Status counts: **50 shipped · 17 wired · 34 planned**
 | 27 | New borrowers seeded at a starting score rather than zero | Shipped |
 | 28 | `ScoreChanged` event carrying the reason, for a user-facing history | Shipped |
 | 29 | Score decay for dormancy | Planned |
-| 30 | Cross-protocol credit import (Aave / Morpho / Compound positions) | Planned |
+| 30 | Cross-protocol credit import — Aave position and health factor read at underwriting | Shipped |
 | 31 | Score portability as an attestation other protocols can read | Planned |
-| 32 | Explainable score breakdown in the borrower UI | Planned |
+| 32 | Explainable score breakdown — every signal and its point contribution | Shipped |
 
 ## Execution layer (KeeperHub)
 
@@ -70,9 +70,9 @@ Status counts: **50 shipped · 17 wired · 34 planned**
 | 45 | KeeperHub workflow JSON for collection and liquidation | Wired |
 | 45b | Live sponsored collection through KeeperHub, end to end | Shipped |
 | 46 | Private mempool routing for liquidations | Planned |
-| 47 | Tempo atomic batch payout for merchant settlement | Planned |
+| 47 | Atomic batch settlement with indexed memos — Tempo semantics on EVM | Shipped |
 | 48 | x402 monetization — sell the collection workflow to other credit protocols | Planned |
-| 49 | MCP server so an agent can open and manage plans | Planned |
+| 49 | MCP server so an agent can check credit, pay, subscribe and lock collateral | Shipped |
 | 50 | Multi-chain keeper fleet with per-chain spend caps | Planned |
 
 ## Collections and risk
