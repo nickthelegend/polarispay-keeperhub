@@ -12,7 +12,8 @@
     "liquidate": "node --experimental-strip-types src/cli.ts liquidate",
     "settle": "node --experimental-strip-types src/cli.ts settle",
     "doctor": "node --experimental-strip-types src/cli.ts doctor",
-    "workflows:push": "node --experimental-strip-types src/cli.ts workflows:push"
+    "workflows:push": "node --experimental-strip-types src/cli.ts workflows:push",
+    "health": "node --experimental-strip-types src/cli.ts health"
   },
   "dependencies": {
     "@polarispay/db": "workspace:*",

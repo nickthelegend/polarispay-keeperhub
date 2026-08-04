@@ -2,7 +2,7 @@
 
 100 features across the PolarisPay stack. **Shipped** means the code is in this repo and exercised by a test or a run. **Wired** means the plumbing exists and needs data or a deployment to be live. **Planned** means designed but not built.
 
-Status counts: **54 shipped · 17 wired · 30 planned**
+Status counts: **56 shipped · 17 wired · 28 planned**
 
 ---
 
@@ -109,7 +109,8 @@ Status counts: **54 shipped · 17 wired · 30 planned**
 | 73 | Idempotent index migration | Shipped |
 | 74 | Installment schedule builder with exact remainder handling | Shipped |
 | 75 | On-chain event indexer, idempotent and resumable | Shipped |
-| 76 | Read replica for merchant analytics | Planned |
+| 76 | Keeper heartbeat — alerts on absent work, not only on failures | Shipped |
+| 76b | Health report derived from the book, not self-reported | Shipped |
 | 77 | Read-only chain-vs-book drift report with material exposure | Shipped |
 
 ## Merchant experience

@@ -58,3 +58,11 @@ export type { IndexResult } from './indexer.js';
 
 export { markSettled, pendingSettlements } from './settlements.js';
 export type { PendingSettlement } from './settlements.js';
+
+export {
+  STALE_AFTER_MINUTES,
+  healthReport,
+  recordHeartbeat,
+  renderHealth,
+} from './health.js';
+export type { HealthReport, HealthStatus, Heartbeat, KeeperJob } from './health.js';

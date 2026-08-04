@@ -25,6 +25,9 @@ import {
   MongoReceiptStore,
   pendingSettlements,
   ping,
+  healthReport,
+  recordHeartbeat,
+  renderHealth,
 } from "@polarispay/db";
 
 import { loadConfig, sponsorshipNote } from "./config.ts";
@@ -175,7 +178,11 @@ async function loop(): Promise<void> {
   for (;;) {
     const started = Date.now();
     try {
-      const results = [await collect(), await liquidate(), await settle()];
+      const results = [
+        await withHeartbeat("collection", collect),
+        await withHeartbeat("liquidation", liquidate),
+        await withHeartbeat("settlement", settle),
+      ];
       console.log(`\n--- pass complete ---\n${summarize(results)}\n`);
     } catch (err) {
       // A pass failing must never kill the keeper: the next pass re-reads state
@@ -207,11 +214,42 @@ function reportError(err: unknown): void {
   }
 }
 
+/**
+ * Every pass writes a heartbeat, successful or not. The health check reads
+ * those rather than anything the keeper claims about itself, so a keeper that
+ * has stopped is visible as silence rather than being invisible.
+ */
+async function withHeartbeat(
+  job: "collection" | "liquidation" | "settlement",
+  fn: () => Promise<JobResult>
+): Promise<JobResult> {
+  const started = Date.now();
+  const result = await fn();
+  if (process.env.MONGODB_URI) {
+    await recordHeartbeat({
+      job,
+      at: new Date(),
+      considered: result.considered,
+      succeeded: result.succeeded,
+      failed: result.failed,
+      skipped: result.skipped,
+      durationMs: Date.now() - started,
+    }).catch(() => undefined);
+  }
+  return result;
+}
+
+async function health(): Promise<void> {
+  const { config } = build();
+  console.log(renderHealth(await healthReport(config.chainId)));
+}
+
 const COMMANDS: Record<string, () => Promise<unknown>> = {
   doctor,
-  collect,
-  liquidate,
-  settle,
+  health,
+  collect: () => withHeartbeat("collection", collect),
+  liquidate: () => withHeartbeat("liquidation", liquidate),
+  settle: () => withHeartbeat("settlement", settle),
   run: loop,
 };
 
