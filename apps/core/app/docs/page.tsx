@@ -21,9 +21,9 @@ const CONTRACTS: Array<[string, string]> = [
   ["Test token (pUSDC)", "0x49C86277a91002c4943837bf20F6ED41976Db09F"],
 ]
 
-const INSTALL = `pnpm add @polarispay/sdk`
+const INSTALL = `npm install polarispay-sdk ethers`
 
-const CHECKOUT = `import { PayWithPolarisBNPL } from "@polarispay/sdk";
+const CHECKOUT = `import { PayWithPolarisBNPL } from "polarispay-sdk/react";
 
 // One component. It reads the shopper's limit from the chain, shows the
 // four-payment schedule, and opens the plan.
@@ -34,7 +34,7 @@ const CHECKOUT = `import { PayWithPolarisBNPL } from "@polarispay/sdk";
   onSuccess={(r) => console.log(r.transactionHash)}
 />`
 
-const HEADLESS = `import { createPolaris } from "@polarispay/sdk";
+const HEADLESS = `import { createPolaris } from "polarispay-sdk";
 
 const polaris = createPolaris();
 await polaris.connect();
@@ -102,6 +102,19 @@ export default function DocsPage() {
 
       <Section title="Install">
         <Code text={INSTALL} lang="bash" />
+        <p className="mt-3 text-[13px] leading-relaxed text-foreground/50">
+          Published on npm as{" "}
+          <a
+            href="https://www.npmjs.com/package/polarispay-sdk"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono text-primary underline-offset-4 hover:underline"
+          >
+            polarispay-sdk
+          </a>
+          . Ships ESM and CommonJS builds with types. React is an optional peer dependency, so the
+          headless client imports cleanly on a Node backend.
+        </p>
       </Section>
 
       <Section

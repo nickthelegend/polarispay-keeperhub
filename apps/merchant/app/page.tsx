@@ -51,7 +51,7 @@ const STEPS = [
     },
 ];
 
-const SNIPPET = `import { PayWithPolarisBNPL } from "@polarispay/sdk";
+const SNIPPET = `import { PayWithPolarisBNPL } from "polarispay-sdk/react";
 
 // Reads the shopper's limit from the chain, shows the
 // four-payment schedule, and opens the plan.

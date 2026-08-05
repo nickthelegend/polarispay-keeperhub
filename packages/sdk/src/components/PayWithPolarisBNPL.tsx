@@ -1,8 +1,5 @@
 'use client';
 
-import React, { useCallback, useMemo, useState } from 'react';
-import { BrowserProvider, Contract, formatUnits, parseUnits } from 'ethers';
-
 /**
  * Drop-in BNPL checkout for the Polaris LoanEngine.
  *
@@ -16,27 +13,21 @@ import { BrowserProvider, Contract, formatUnits, parseUnits } from 'ethers';
  * the merchant's backend signs it, not the buyer. The buyer therefore pays no
  * gas to start a plan.
  *
+ * This file is presentation only. Every chain interaction goes through
+ * `createPolaris`, so the widget and a hand-rolled checkout cannot drift apart
+ * on decimals, allowance headroom, or error copy -- which they had, at 105% here
+ * against 110% there.
+ *
+ * Theming: colours come from CSS custom properties with dark defaults. Set
+ * `--polaris-bg`, `--polaris-fg`, `--polaris-accent` and friends on any
+ * ancestor to make it match the surrounding page. No stylesheet to import.
  */
 
-const ERC20_ABI = [
-  'function allowance(address owner, address spender) view returns (uint256)',
-  'function approve(address spender, uint256 amount) returns (bool)',
-  'function decimals() view returns (uint8)',
-  'function symbol() view returns (string)',
-];
-
-const SCORE_ABI = [
-  'function scoreOf(address) view returns (uint16)',
-  'function creditLimitOf(address) view returns (uint256)',
-];
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPolaris, SEPOLIA, type CreditProfile } from '../polaris.js';
 
 /** Public Sepolia deployment. Override for your own. */
-export const POLARIS_SEPOLIA = {
-  chainId: 11155111,
-  loanEngine: '0x5d6F049f791C40b09701129b3663d1A8ce9eAB86',
-  stablecoin: '0x49C86277a91002c4943837bf20F6ED41976Db09F',
-  scoreManager: '0x13C5af8f4c6E7f3b26998451Cf4FD65a6Ca268e2',
-};
+export const POLARIS_SEPOLIA = SEPOLIA;
 
 export interface PayWithPolarisBNPLProps {
   /** Merchant API key, forwarded to your backend to authorise the plan. */
@@ -48,20 +39,19 @@ export interface PayWithPolarisBNPLProps {
   orderId: string;
   installments?: number;
   intervalSeconds?: number;
-  chainId?: number;
-  contracts?: { loanEngine: string; stablecoin: string; scoreManager: string };
+  contracts?: typeof SEPOLIA;
+  /** Read-only RPC, so eligibility can be shown before the buyer connects. */
+  rpcUrl?: string;
   onSuccess?: (result: { loanId?: string; transactionHash?: string }) => void;
   onError?: (message: string) => void;
 }
 
-type Phase =
-  | 'idle'
-  | 'connecting'
-  | 'checking'
-  | 'approving'
-  | 'opening'
-  | 'done'
-  | 'error';
+type Phase = 'idle' | 'connecting' | 'working' | 'done' | 'error';
+
+type EthereumLike = {
+  on?: (event: string, handler: (...args: unknown[]) => void) => void;
+  removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
+};
 
 export function PayWithPolarisBNPL({
   apiKey,
@@ -70,25 +60,43 @@ export function PayWithPolarisBNPL({
   orderId,
   installments = 4,
   intervalSeconds = 14 * 24 * 60 * 60,
-  chainId = POLARIS_SEPOLIA.chainId,
-  contracts = POLARIS_SEPOLIA,
+  contracts = SEPOLIA,
+  rpcUrl,
   onSuccess,
   onError,
 }: PayWithPolarisBNPLProps) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [message, setMessage] = useState('');
   const [account, setAccount] = useState<string>();
-  const [credit, setCredit] = useState<{
-    score: number;
-    limit: string;
-    symbol: string;
-    eligible: boolean;
-  }>();
+  const [credit, setCredit] = useState<CreditProfile>();
 
-  const perInstallment = useMemo(() => {
-    const n = Number.parseFloat(amount);
-    return Number.isFinite(n) ? (n / installments).toFixed(2) : '--';
-  }, [amount, installments]);
+  const polaris = useMemo(
+    () => createPolaris({ apiKey, endpoint, contracts, rpcUrl }),
+    [apiKey, endpoint, contracts, rpcUrl]
+  );
+
+  const total = Number.parseFloat(amount);
+  const perInstallment = Number.isFinite(total) ? (total / installments).toFixed(2) : '--';
+
+  /*
+   * Eligibility is a fact about (buyer, amount). Deriving it on render rather
+   * than freezing it into state at connect time is what stops a cart update
+   * from leaving the button disabled against a total that no longer applies.
+   */
+  const overLimit =
+    credit !== undefined &&
+    Number.isFinite(total) &&
+    Number.parseFloat(credit.limit) < total;
+
+  const schedule = useMemo(() => {
+    if (!Number.isFinite(total)) return [];
+    const fmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+    return Array.from({ length: installments }, (_, i) => ({
+      key: i,
+      when: i === 0 ? 'Today' : fmt.format(new Date(Date.now() + i * intervalSeconds * 1000)),
+      amount: (total / installments).toFixed(2),
+    }));
+  }, [total, installments, intervalSeconds]);
 
   const fail = useCallback(
     (msg: string) => {
@@ -99,123 +107,67 @@ export function PayWithPolarisBNPL({
     [onError]
   );
 
+  /*
+   * A wallet can change account or network while this component is mounted. The
+   * previous version cached the address once and kept using it, so after a
+   * switch it checked one account's allowance and asked a different account to
+   * sign. Drop everything and make the buyer reconnect.
+   */
+  useEffect(() => {
+    const eth = (globalThis as { ethereum?: EthereumLike }).ethereum;
+    if (!eth?.on) return;
+    const reset = () => {
+      setAccount(undefined);
+      setCredit(undefined);
+      setPhase('idle');
+      setMessage('');
+    };
+    eth.on('accountsChanged', reset);
+    eth.on('chainChanged', reset);
+    return () => {
+      eth.removeListener?.('accountsChanged', reset);
+      eth.removeListener?.('chainChanged', reset);
+    };
+  }, []);
+
   const connect = useCallback(async () => {
-    const eth = (globalThis as { ethereum?: any }).ethereum;
-    if (!eth) {
-      fail('No wallet found. Install a browser wallet to pay with Polaris.');
+    setPhase('connecting');
+    setMessage('Checking your credit line...');
+    try {
+      const profile = await polaris.getCredit();
+      setCredit(profile);
+      setAccount(profile.address);
+      setPhase('idle');
+      setMessage('');
+    } catch (err) {
+      fail(readableError(err));
+    }
+  }, [polaris, fail]);
+
+  const start = useCallback(async () => {
+    setPhase('working');
+    setMessage('Approve the repayment allowance in your wallet...');
+    const result = await polaris.payLater({ amount, orderId, installments, intervalSeconds });
+    if (!result.ok) {
+      fail(result.error ?? 'Could not open the plan.');
       return;
     }
-    try {
-      setPhase('connecting');
-      setMessage('Connecting your wallet...');
-      const provider = new BrowserProvider(eth);
-      const [address] = await provider.send('eth_requestAccounts', []);
-      setAccount(address);
+    setPhase('done');
+    setMessage(`Plan open. ${installments} instalments of ${perInstallment} collect automatically.`);
+    onSuccess?.({ loanId: result.loanId, transactionHash: result.transactionHash });
+  }, [polaris, amount, orderId, installments, intervalSeconds, perInstallment, onSuccess, fail]);
 
-      const net = await provider.getNetwork();
-      if (net.chainId !== BigInt(chainId)) {
-        await provider.send('wallet_switchEthereumChain', [
-          { chainId: `0x${chainId.toString(16)}` },
-        ]);
-      }
+  const busy = phase === 'connecting' || phase === 'working';
 
-      // Read the buyer's standing before offering the plan, so an ineligible
-      // buyer is told why rather than hitting a revert at origination.
-      setPhase('checking');
-      setMessage('Checking your credit line...');
-      const scores = new Contract(contracts.scoreManager, SCORE_ABI, provider);
-      const token = new Contract(contracts.stablecoin, ERC20_ABI, provider);
-      const [score, limitRaw, decimals, symbol] = await Promise.all([
-        scores.scoreOf(address),
-        scores.creditLimitOf(address),
-        token.decimals(),
-        token.symbol(),
-      ]);
-
-      const eligible = limitRaw >= parseUnits(amount, decimals);
-      setCredit({
-        score: Number(score),
-        limit: formatUnits(limitRaw, decimals),
-        symbol,
-        eligible,
-      });
-      setPhase('idle');
-      setMessage(
-        eligible
-          ? ''
-          : `This order is above your current limit of ${formatUnits(limitRaw, decimals)} ${symbol}. Paying instalments on time raises it.`
-      );
-    } catch (err) {
-      fail(readableError(err));
-    }
-  }, [amount, chainId, contracts, fail]);
-
-  const pay = useCallback(async () => {
-    const eth = (globalThis as { ethereum?: any }).ethereum;
-    if (!eth || !account) return;
-    try {
-      const provider = new BrowserProvider(eth);
-      const signer = await provider.getSigner();
-      const token = new Contract(contracts.stablecoin, ERC20_ABI, signer);
-      const decimals = await token.decimals();
-
-      // Approve slightly above the order total to cover accrued interest. This
-      // is an allowance, not a transfer: nothing leaves the wallet until an
-      // instalment is actually due.
-      const total = parseUnits(amount, decimals);
-      const withInterest = (total * 105n) / 100n;
-
-      const current: bigint = await token.allowance(account, contracts.loanEngine);
-      if (current < withInterest) {
-        setPhase('approving');
-        setMessage('Approve the repayment allowance in your wallet...');
-        const tx = await token.approve(contracts.loanEngine, withInterest);
-        await tx.wait();
-      }
-
-      setPhase('opening');
-      setMessage('Opening your payment plan...');
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
-        body: JSON.stringify({
-          borrower: account,
-          amount,
-          orderId,
-          installments,
-          intervalSeconds,
-          chainId,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Could not open the plan (${res.status})`);
-      }
-      const result = await res.json();
-
-      setPhase('done');
-      setMessage(`Plan open. Instalments of ${perInstallment} are collected automatically.`);
-      onSuccess?.(result);
-    } catch (err) {
-      fail(readableError(err));
-    }
-  }, [
-    account,
-    amount,
-    apiKey,
-    chainId,
-    contracts,
-    endpoint,
-    installments,
-    intervalSeconds,
-    onSuccess,
-    orderId,
-    perInstallment,
-    fail,
-  ]);
-
-  const busy =
-    phase === 'connecting' || phase === 'checking' || phase === 'approving' || phase === 'opening';
+  const label = phase === 'done'
+    ? 'Plan open'
+    : busy
+      ? 'Working...'
+      : overLimit
+        ? 'Over your limit'
+        : account
+          ? 'Set up plan'
+          : 'Continue with Polaris';
 
   return (
     <div style={S.root}>
@@ -228,39 +180,53 @@ export function PayWithPolarisBNPL({
       </div>
 
       <p style={S.sub}>
-        {amount} total. Nothing is locked up front -- instalments are collected from your wallet on
+        {amount} total. Nothing is taken today -- instalments are collected from your wallet on
         schedule, and you can revoke the allowance at any time.
       </p>
+
+      {schedule.length > 0 && (
+        <ol style={S.schedule}>
+          {schedule.map((row) => (
+            <li key={row.key} style={S.row}>
+              <span style={S.when}>{row.when}</span>
+              <span style={S.rail} aria-hidden="true" />
+              <span style={S.amount}>{row.amount}</span>
+            </li>
+          ))}
+        </ol>
+      )}
 
       {credit && (
         <div style={S.credit}>
           Polaris score {credit.score}
-          <span style={S.dot}>·</span>
+          <span style={S.dot}>&middot;</span>
           {credit.limit} {credit.symbol} limit
         </div>
       )}
 
       <button
-        onClick={account ? pay : connect}
-        disabled={busy || phase === 'done' || credit?.eligible === false}
-        style={{ ...S.button, opacity: busy || credit?.eligible === false ? 0.6 : 1 }}
+        type="button"
+        onClick={account ? start : connect}
+        disabled={busy || phase === 'done' || overLimit}
+        aria-busy={busy}
+        style={{ ...S.button, opacity: busy || overLimit ? 0.55 : 1 }}
       >
-        {phase === 'done'
-          ? 'Plan open'
-          : busy
-            ? message || 'Working...'
-            : account
-              ? `Pay ${perInstallment} now`
-              : 'Continue with Polaris'}
+        {label}
       </button>
 
-      {message && !busy && (
-        <p style={phase === 'error' ? S.error : phase === 'done' ? S.success : S.status}>
-          {message}
-        </p>
-      )}
+      <p role="status" aria-live="polite" style={statusStyle(phase, overLimit)}>
+        {overLimit && !busy
+          ? `This order is above your ${credit?.limit} ${credit?.symbol} limit. Paying instalments on time raises it.`
+          : message}
+      </p>
     </div>
   );
+}
+
+function statusStyle(phase: Phase, overLimit: boolean): React.CSSProperties {
+  if (phase === 'error' || overLimit) return S.error;
+  if (phase === 'done') return S.success;
+  return S.status;
 }
 
 /** Turn wallet and RPC noise into something a buyer can act on. */
@@ -273,14 +239,16 @@ function readableError(err: unknown): string {
   return raw.length > 160 ? `${raw.slice(0, 157)}...` : raw;
 }
 
+const v = (name: string, fallback: string) => `var(--polaris-${name}, ${fallback})`;
+
 const S: Record<string, React.CSSProperties> = {
   root: {
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: 12,
+    border: `1px solid ${v('border', 'rgba(255,255,255,0.12)')}`,
+    borderRadius: v('radius', '12px'),
     padding: 20,
-    background: 'rgba(255,255,255,0.02)',
-    color: '#fff',
-    fontFamily: 'system-ui, sans-serif',
+    background: v('bg', 'rgba(255,255,255,0.02)'),
+    color: v('fg', '#fff'),
+    fontFamily: v('font', 'system-ui, sans-serif'),
     maxWidth: 380,
   },
   head: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' },
@@ -288,33 +256,51 @@ const S: Record<string, React.CSSProperties> = {
     fontSize: 11,
     letterSpacing: '0.14em',
     textTransform: 'uppercase',
-    color: 'rgba(255,255,255,0.5)',
+    color: v('muted', 'rgba(255,255,255,0.5)'),
   },
   total: { fontSize: 28, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' },
-  per: { fontSize: 14, color: 'rgba(255,255,255,0.45)' },
-  sub: { marginTop: 10, fontSize: 13, lineHeight: 1.5, color: 'rgba(255,255,255,0.5)' },
+  per: { fontSize: 14, color: v('muted', 'rgba(255,255,255,0.45)') },
+  sub: { marginTop: 10, fontSize: 13, lineHeight: 1.5, color: v('muted', 'rgba(255,255,255,0.5)') },
+  schedule: {
+    listStyle: 'none',
+    margin: '16px 0 0',
+    padding: 0,
+    display: 'grid',
+    gap: 6,
+  },
+  row: {
+    display: 'grid',
+    gridTemplateColumns: 'auto 1fr auto',
+    alignItems: 'center',
+    gap: 10,
+    fontSize: 12,
+    fontVariantNumeric: 'tabular-nums',
+  },
+  when: { color: v('muted', 'rgba(255,255,255,0.5)') },
+  rail: { height: 1, background: v('border', 'rgba(255,255,255,0.10)') },
+  amount: { color: v('fg', '#fff') },
   credit: {
     marginTop: 14,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.55)',
+    color: v('muted', 'rgba(255,255,255,0.55)'),
     fontVariantNumeric: 'tabular-nums',
   },
-  dot: { margin: '0 8px', color: 'rgba(255,255,255,0.25)' },
+  dot: { margin: '0 8px', color: v('border', 'rgba(255,255,255,0.25)') },
   button: {
     marginTop: 18,
     width: '100%',
     padding: '12px 16px',
-    borderRadius: 8,
+    borderRadius: v('radius-sm', '8px'),
     border: 'none',
-    background: '#A6F24A',
-    color: '#000',
+    background: v('accent', '#A6F24A'),
+    color: v('accent-fg', '#000'),
     fontSize: 14,
     fontWeight: 600,
     cursor: 'pointer',
   },
-  status: { marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.55)' },
-  error: { marginTop: 12, fontSize: 12, color: '#fda4af' },
-  success: { marginTop: 12, fontSize: 12, color: '#A6F24A' },
+  status: { marginTop: 12, fontSize: 12, minHeight: 16, color: v('muted', 'rgba(255,255,255,0.55)') },
+  error: { marginTop: 12, fontSize: 12, minHeight: 16, color: v('danger', '#fda4af') },
+  success: { marginTop: 12, fontSize: 12, minHeight: 16, color: v('accent', '#A6F24A') },
 };
 
 export default PayWithPolarisBNPL;

@@ -8,6 +8,7 @@ export type KeeperHubErrorKind =
   | "not_found" //       404
   | "would_revert" //    simulation says this call fails on current state
   | "insufficient_funds" // payer cannot cover the charge
+  | "in_flight" //       our own earlier attempt is still being processed
   | "timeout" //         never reached a terminal status in the poll budget
   | "reverted" //        broadcast, mined, failed
   | "server" //          5xx
@@ -55,6 +56,7 @@ export class KeeperHubError extends Error {
  */
 const DEFAULT_RETRYABLE = new Set<KeeperHubErrorKind>([
   "rate_limit",
+  "in_flight",
   "timeout",
   "server",
 ]);
@@ -77,6 +79,7 @@ export function isKeeperHubError(err: unknown): err is KeeperHubError {
  * executed again and the borrower is charged twice for one instalment.
  */
 const INDEFINITE: ReadonlySet<KeeperHubErrorKind> = new Set([
+  "in_flight",
   "timeout",
   "server",
 ]);
@@ -109,6 +112,29 @@ export function errorFromResponse(
   }
   if (status === 429) {
     return new KeeperHubError("rate_limit", message, opts);
+  }
+  /*
+   * 409 carries two conditions that mean opposite things.
+   *
+   * `idempotency_in_progress` says one of our own earlier attempts still holds
+   * the lock and is very likely landing on chain. Treating it as terminal is
+   * what this classifier used to do -- it fell through to `unknown` -- and the
+   * result was a live instalment pushed into dunning while the charge behind it
+   * succeeded, telling the borrower a payment failed that did not.
+   *
+   * `idempotency_conflict` is terminal for the key, though not for the call:
+   * the key is bound to a different body and always will be, so it needs a new
+   * one rather than another attempt.
+   */
+  if (status === 409) {
+    const code = (body as { code?: string })?.code;
+    const inFlight =
+      code === "idempotency_in_progress" ||
+      /already being processed/i.test(message);
+    if (inFlight) {
+      return new KeeperHubError("in_flight", message, opts);
+    }
+    return new KeeperHubError("validation", message, { ...opts, retryable: false });
   }
   if (status === 404) {
     return new KeeperHubError("not_found", message, opts);

@@ -60,7 +60,12 @@ const fetcher = async (url: string) => {
 
 export default function LimitsPage() {
   return (
-    <ConnectGate>
+    <ConnectGate
+      title="Connect to see your limit"
+      reason="Your limit is built from this wallet's own repayment history, so there is nothing to show until we know which wallet you are."
+      previewLabel="Your credit line"
+      previewNote="your score, your limit and the collateral behind it"
+    >
       <Limits />
     </ConnectGate>
   )

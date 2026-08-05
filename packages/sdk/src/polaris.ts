@@ -16,10 +16,18 @@
  * hardcoded 18 against a 6-decimal stablecoin, which overcharged by 10^12.
  */
 
-import { BrowserProvider, Contract, formatUnits, parseUnits } from "ethers";
+import {
+  BrowserProvider,
+  Contract,
+  JsonRpcProvider,
+  formatUnits,
+  parseUnits,
+} from "ethers";
 
 export const SEPOLIA = {
   chainId: 11155111,
+  name: "Sepolia",
+  rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com",
   explorer: "https://sepolia.etherscan.io",
   stablecoin: "0x49C86277a91002c4943837bf20F6ED41976Db09F",
   loanEngine: "0x5d6F049f791C40b09701129b3663d1A8ce9eAB86",
@@ -64,6 +72,11 @@ export type PolarisOptions = {
   contracts?: PolarisContracts;
   /** Injected provider. Defaults to `window.ethereum`. */
   provider?: unknown;
+  /**
+   * Read-only RPC. When set, the read methods use it instead of the wallet, so
+   * a merchant can price a "pay in 4" badge before the buyer connects anything.
+   */
+  rpcUrl?: string;
 };
 
 export type Result = {
@@ -94,22 +107,57 @@ export function createPolaris(options: PolarisOptions = {}) {
       | undefined;
     if (!eth) throw new Error("No wallet found. Install a browser wallet to pay with Polaris.");
 
-    const provider = new BrowserProvider(eth as never);
+    let provider = new BrowserProvider(eth as never);
     const [address] = (await provider.send("eth_requestAccounts", [])) as string[];
+    if (!address) throw new Error("Your wallet returned no account.");
 
     const net = await provider.getNetwork();
     if (net.chainId !== BigInt(c.chainId)) {
-      await provider.send("wallet_switchEthereumChain", [
-        { chainId: `0x${c.chainId.toString(16)}` },
-      ]);
+      const hex = `0x${c.chainId.toString(16)}`;
+      try {
+        await provider.send("wallet_switchEthereumChain", [{ chainId: hex }]);
+      } catch (err) {
+        // 4902: the wallet has never heard of this chain. Offer to add it
+        // rather than dead-ending the buyer on "unrecognized chain".
+        if ((err as { code?: number })?.code !== 4902) throw err;
+        await provider.send("wallet_addEthereumChain", [
+          { chainId: hex, chainName: c.name, rpcUrls: [c.rpcUrl], blockExplorerUrls: [c.explorer] },
+        ]);
+      }
+      /*
+       * A BrowserProvider caches the network it detected on construction, so
+       * the instance that just switched still reports the old chain and will
+       * happily sign against it. Everything after this point must go through a
+       * provider built after the switch.
+       */
+      provider = new BrowserProvider(eth as never);
     }
-    return { provider, signer: await provider.getSigner(), address: address! };
+    return { provider, signer: await provider.getSigner(), address };
   }
 
-  /** Read decimals from the token rather than assuming them. */
+  /**
+   * Read decimals from the token rather than assuming them, then hold onto the
+   * answer. It cannot change, and re-reading it made every priced call pay for
+   * an extra round trip.
+   */
+  let decimalsCache: Promise<number> | undefined;
+  function tokenDecimals(provider: BrowserProvider | JsonRpcProvider): Promise<number> {
+    decimalsCache ??= (async () =>
+      Number(await new Contract(c.stablecoin, ERC20, provider).decimals()))();
+    return decimalsCache;
+  }
+
   async function scale(provider: BrowserProvider, amount: string): Promise<bigint> {
-    const token = new Contract(c.stablecoin, ERC20, provider);
-    return parseUnits(amount, await token.decimals());
+    return parseUnits(amount, await tokenDecimals(provider));
+  }
+
+  /** A provider for reads: the configured RPC if there is one, else the wallet. */
+  async function reader(): Promise<{ provider: BrowserProvider | JsonRpcProvider; address?: string }> {
+    if (options.rpcUrl) {
+      return { provider: new JsonRpcProvider(options.rpcUrl, c.chainId) };
+    }
+    const { provider, address } = await connect();
+    return { provider, address };
   }
 
   /** Approve only when the current allowance is short. */
@@ -135,7 +183,7 @@ export function createPolaris(options: PolarisOptions = {}) {
     return { ok: false, error: raw.length > 160 ? `${raw.slice(0, 157)}…` : raw };
   }
 
-  return {
+  const api = {
     contracts: c,
 
     /** Pay a merchant in full, now. */
@@ -167,7 +215,11 @@ export function createPolaris(options: PolarisOptions = {}) {
         // Approve a year of periods so the keeper can collect unattended, and
         // no more -- the subscriber can revoke at any time, and this bounds
         // what a compromised contract could ever draw.
-        const periodsPerYear = BigInt(Math.ceil(31_536_000 / Number(plan.periodSeconds)));
+        const period = Number(plan.periodSeconds);
+        if (!Number.isFinite(period) || period <= 0) {
+          return { ok: false, error: "This plan is misconfigured and cannot be started." };
+        }
+        const periodsPerYear = BigInt(Math.max(1, Math.ceil(31_536_000 / period)));
         await ensureAllowance(
           signer as never,
           c.payments,
@@ -265,17 +317,29 @@ export function createPolaris(options: PolarisOptions = {}) {
       }
     },
 
-    /** Read-only. Safe to call before the buyer commits to anything. */
+    /**
+     * Read-only. Safe to call before the buyer commits to anything.
+     *
+     * With `rpcUrl` set this touches no wallet at all, which is what makes an
+     * eligibility badge renderable on a product page. Without one it has to
+     * borrow the wallet's provider, and connecting is the price of that.
+     */
     async getCredit(address?: string): Promise<CreditProfile> {
-      const { provider, address: connected } = await connect();
+      const { provider, address: connected } = address
+        ? await (async () => {
+            const r = await reader();
+            return { provider: r.provider, address: r.address };
+          })()
+        : await connect();
       const who = address ?? connected;
+      if (!who) throw new Error("No address to read credit for.");
 
       const token = new Contract(c.stablecoin, ERC20, provider);
       const scores = new Contract(c.scoreManager, SCORES, provider);
       const vault = new Contract(c.collateralVault, VAULT, provider);
 
       const [decimals, symbol, score, limit, base, locked, boost, free] = await Promise.all([
-        token.decimals(),
+        tokenDecimals(provider),
         token.symbol(),
         scores.scoreOf(who),
         scores.creditLimitOf(who),
@@ -300,7 +364,7 @@ export function createPolaris(options: PolarisOptions = {}) {
 
     /** Whether this buyer can afford a given order on credit. */
     async canPayLater(amount: string): Promise<{ eligible: boolean; limit: string; symbol: string }> {
-      const credit = await this.getCredit();
+      const credit = await api.getCredit();
       return {
         eligible: Number.parseFloat(credit.limit) >= Number.parseFloat(amount),
         limit: credit.limit,
@@ -308,6 +372,8 @@ export function createPolaris(options: PolarisOptions = {}) {
       };
     },
   };
+
+  return api;
 }
 
 export type Polaris = ReturnType<typeof createPolaris>;

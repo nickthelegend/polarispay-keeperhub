@@ -56,8 +56,14 @@ export async function GET(): Promise<NextResponse> {
       updatedAt: new Date().toISOString(),
     });
   } catch (err) {
+    // The driver's message carries the cluster hostname, which does not belong
+    // in a public response body.
+    console.error("[GET /api/global-stats] read failed", err);
     return NextResponse.json(
-      { error: (err as Error).message ?? "Could not compute statistics" },
+      {
+        error:
+          "Could not load protocol statistics right now. This is on our side -- try again in a moment.",
+      },
       { status: 500 }
     );
   }

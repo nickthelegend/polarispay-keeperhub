@@ -18,6 +18,7 @@ import {
   PolarisKeeper,
   selfCure,
   isIndefinite,
+  errorFromResponse,
 } from "../dist/index.js";
 
 type Handler = (url: string, init: RequestInit) => { status: number; body: unknown };
@@ -468,5 +469,79 @@ describe("indefinite outcomes", () => {
   // rejected before execution, so nothing is in flight to collide with.
   it("treats a rate limit as definite", () => {
     assert.equal(isIndefinite("rate_limit"), false);
+  });
+});
+
+describe("409 classification", () => {
+  // Found in production: the keeper dunned a live instalment because a 409
+  // fell through to `unknown`, which is not retryable. The charge behind it
+  // had in fact succeeded.
+  it("treats an in-progress duplicate as retryable, not terminal", () => {
+    const err = errorFromResponse(409, {
+      error: "A request with this Idempotency-Key is already being processed.",
+      code: "idempotency_in_progress",
+    });
+    assert.equal(err.kind, "in_flight");
+    assert.equal(err.retryable, true);
+  });
+
+  it("recognises an in-progress 409 from the message when no code is sent", () => {
+    const err = errorFromResponse(409, {
+      error: "A request with this Idempotency-Key is already being processed. Retry shortly.",
+    });
+    assert.equal(err.kind, "in_flight");
+    assert.equal(err.retryable, true);
+  });
+
+  // The outcome is unknown while another attempt holds the lock, so the key has
+  // to stay put; rotating it would execute the call a second time.
+  it("holds the key on an in-progress duplicate", () => {
+    assert.equal(isIndefinite("in_flight"), true);
+  });
+
+  it("treats a key conflict as terminal for that key", () => {
+    const err = errorFromResponse(409, {
+      error: "Idempotency-Key was reused with a different request payload.",
+      code: "idempotency_conflict",
+    });
+    assert.equal(err.retryable, false);
+    // Definite, so the next attempt is free to take a fresh key.
+    assert.equal(isIndefinite(err.kind), false);
+  });
+});
+
+describe("settlement idempotency", () => {
+  // A live run hit this: the same five orders settled twice, the second time
+  // for more money because more instalments had collected in between. Keyed on
+  // the orders alone, that is one key with two bodies, and KeeperHub correctly
+  // refused the second one.
+  const settleKey = async (amountRaw: string) => {
+    const { fetchImpl, calls } = stubFetch([
+      // assertWouldSucceed runs first and carries no key.
+      () => ({ status: 200, body: { success: true, gasEstimate: "21000" } }),
+      () => ({ status: 202, body: { executionId: "e", status: "pending" } }),
+      () => ({ status: 200, body: { executionId: "e", status: "completed" } }),
+    ]);
+    const kh = new KeeperHubClient({ apiKey: "kh_test", fetchImpl });
+    const keeper = new PolarisKeeper(kh, DEPLOYMENT, new InMemoryReceiptStore());
+    await keeper.settleMerchant({
+      merchantId: "m1",
+      escrowAddress: "0xEscrow",
+      amountRaw,
+      orderId: "A,B,C",
+    });
+    const keyed = calls
+      .map((c) => (c.init.headers as Record<string, string>)["Idempotency-Key"])
+      .filter(Boolean);
+    assert.equal(keyed.length, 1, "exactly one call should carry a key");
+    return keyed[0];
+  };
+
+  it("gives a larger payout over the same orders a different key", async () => {
+    assert.notEqual(await settleKey("100000000"), await settleKey("250000000"));
+  });
+
+  it("collapses an identical settlement onto one key", async () => {
+    assert.equal(await settleKey("100000000"), await settleKey("100000000"));
   });
 });

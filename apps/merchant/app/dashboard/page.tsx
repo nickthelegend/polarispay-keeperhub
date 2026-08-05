@@ -467,24 +467,80 @@ function RowSkeleton() {
     );
 }
 
+/**
+ * The merchant gate.
+ *
+ * This was a 26rem column centred in a full-screen void, which is the least
+ * informative thing a dashboard can show before you sign in: it asks for a
+ * wallet without showing what the wallet buys you. It is now a split -- the
+ * pitch beside the redacted shape of the ledger itself.
+ *
+ * The bars are bars rather than sample figures on purpose. A merchant console
+ * that renders a plausible fake balance to look populated has misled its user
+ * before they have even connected.
+ */
 function SignIn({ onSignIn }: { onSignIn: () => void }) {
+    const facts = [
+        'Settlement lands the moment a customer checks out, not on a payout cycle.',
+        'Every instalment is simulated before it is sent, so a charge that would fail becomes a dunning event instead of a burnt transaction.',
+        'Gas is sponsored. Your customers never hold the native token.',
+    ];
+
     return (
-        <div className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
-            <div className="w-full max-w-[26rem]">
-                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-primary">PolarisPay</p>
-                <h1 className="mt-4 text-[2rem] font-semibold leading-[1.1] tracking-[-0.02em]">
-                    Your collections ledger
-                </h1>
-                <p className="mt-4 text-[15px] leading-relaxed text-white/55">
-                    Every plan you have originated, what it has collected, and what is still owed to you. Settlement
-                    lands the moment a customer checks out.
-                </p>
-                <button
-                    onClick={onSignIn}
-                    className="mt-9 flex w-full items-center justify-center gap-2.5 rounded-lg bg-primary px-6 py-3.5 text-sm font-semibold text-black transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-px hover:shadow-[0_6px_24px_-6px_rgba(166,242,74,0.5)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:translate-y-0"
-                >
-                    Connect wallet
-                </button>
+        <div className="shell">
+            <div className="split min-h-[80dvh] items-center py-16">
+                <div className="max-w-xl">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-primary">PolarisPay</p>
+                    <h1 className="page-title mt-5">Your collections ledger</h1>
+                    <p className="page-lede mt-4 text-[15px]">
+                        Every plan you have originated, what it has collected, and what is still owed to you.
+                    </p>
+
+                    <button
+                        type="button"
+                        onClick={onSignIn}
+                        className="mt-8 flex w-full max-w-xs items-center justify-center gap-2.5 rounded-lg bg-primary px-6 py-3.5 text-sm font-semibold text-black transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-px hover:shadow-[0_6px_24px_-6px_rgba(166,242,74,0.5)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:translate-y-0"
+                    >
+                        Connect wallet
+                    </button>
+
+                    <ul className="mt-10 grid gap-3.5">
+                        {facts.map((fact) => (
+                            <li key={fact} className="flex gap-3 text-sm leading-relaxed text-white/50">
+                                <span aria-hidden className="mt-[0.45rem] size-1 shrink-0 rounded-full bg-primary/70" />
+                                {fact}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                {/* The ledger's own shape, with the numbers withheld. */}
+                <div className="surface overflow-clip" aria-hidden>
+                    <div className="grid grid-cols-2 divide-x divide-white/[0.06] border-b border-white/[0.06]">
+                        {['Collected', 'Outstanding'].map((label) => (
+                            <div key={label} className="stat">
+                                <span className="label">{label}</span>
+                                <span className="mt-1 block h-6 w-24 rounded bg-white/[0.07]" />
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="divide-y divide-white/[0.06]">
+                        {['70%', '52%', '81%', '44%', '63%'].map((w, i) => (
+                            <div key={w} className="flex items-center justify-between gap-6 px-5 py-3.5">
+                                <span className="block h-2 rounded-full bg-white/[0.08]" style={{ width: w }} />
+                                <span
+                                    className="block h-2 w-12 shrink-0 rounded-full"
+                                    style={{ background: i % 3 === 0 ? 'rgba(166,242,74,0.22)' : 'rgba(255,255,255,0.06)' }}
+                                />
+                            </div>
+                        ))}
+                    </div>
+
+                    <p className="border-t border-white/[0.06] px-5 py-4 text-xs leading-relaxed text-white/40">
+                        Connect and this fills with your own originations and settlement history.
+                    </p>
+                </div>
             </div>
         </div>
     );

@@ -79,6 +79,20 @@ type Stats = {
   collectionRate: number
 }
 
+type KeeperActivity = {
+  actions: Array<{
+    kind: string
+    outcome: string
+    amount?: string
+    subject: string
+    at: string
+    txHash?: string
+    txLink?: string
+    sponsored: boolean
+    error?: string
+  }>
+}
+
 const num = (s: string | undefined): number => Number.parseFloat((s ?? "0").replace(/,/g, "")) || 0
 
 export default function Home() {
@@ -105,7 +119,7 @@ export default function Home() {
           <Plans plans={credit?.plans} loading={!(credit || creditError)} />
         </>
       ) : (
-        <SignedOut stats={stats} />
+        <SignedOut />
       )}
 
       <Protocol stats={stats} />
@@ -469,37 +483,220 @@ function SectionHead({ children, count }: { children: React.ReactNode; count?: n
   )
 }
 
-function SignedOut({ stats }: { stats?: Stats }) {
+/*
+ * The signed-out hero.
+ *
+ * This used to close with its own Originated/Repaid/Collected band, directly
+ * above the protocol band that carries the same three figures plus two more --
+ * the same numbers twice, a screen apart, which reads as a rendering fault
+ * rather than emphasis. The figures now appear once, below, and the space they
+ * held goes to the keeper feed.
+ *
+ * The right column earns its place by answering the sentence on the left. The
+ * copy claims instalments collect themselves with gas sponsored; the feed is
+ * the receipt for that claim, with the hashes to check it.
+ */
+function SignedOut() {
   return (
-    <section className="mb-14 max-w-2xl">
-      <ShieldCheck className="size-7 text-primary" />
-      <h1 className="mt-6 text-[clamp(2rem,5vw,3rem)] font-semibold leading-[1.05] tracking-tight">
-        Credit underwritten by
-        <br />
-        your own history.
-      </h1>
-      <p className="mt-5 max-w-lg text-base leading-relaxed text-foreground/55">
-        Split any checkout into four. No application and no credit bureau. A new wallet starts at a
-        500 baseline and earns its way up by repaying on time. Instalments collect themselves, with
-        gas sponsored.
-      </p>
+    <section className="mb-14 grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-16">
+      <div>
+        <ShieldCheck className="size-7 text-primary" />
+        <h1 className="mt-6 text-[clamp(2rem,5vw,3rem)] font-semibold leading-[1.05] tracking-tight">
+          Credit underwritten by
+          <br />
+          your own history.
+        </h1>
+        <p className="mt-5 max-w-lg text-base leading-relaxed text-foreground/55">
+          Split any checkout into four. No application and no credit bureau. A new wallet starts at
+          a 500 baseline and earns its way up by repaying on time. Instalments collect themselves,
+          with gas sponsored.
+        </p>
 
-      <div className="mt-8">
-        <ConnectWalletButton />
+        <div className="mt-8">
+          <ConnectWalletButton />
+        </div>
       </div>
 
-      {stats && (
-        <dl className="mt-12 flex flex-wrap gap-x-10 gap-y-5 border-t border-foreground/8 pt-7">
-          <Figure term="Originated" value={stats.totalOriginated} />
-          <Figure term="Repaid" value={stats.totalRepaid} />
-          <Figure
-            term="Collected on time"
-            value={`${stats.collectionRate.toFixed(0)}%`}
-            accent={stats.collectionRate >= 95}
-          />
-        </dl>
-      )}
+      <KeeperFeed />
+
+      <Mechanics />
     </section>
+  )
+}
+
+/**
+ * How the thing works, in the order it happens.
+ *
+ * Three steps rather than a feature grid: the product is a sequence, and the
+ * only question a first-time reader has is what happens after they press buy.
+ * Numbering it answers that; a grid of cards would not.
+ *
+ * It spans both columns so it reads as the floor under the hero, not a fourth
+ * item in the right-hand rail.
+ */
+function Mechanics() {
+  const steps = [
+    {
+      n: "01",
+      head: "Check out in four",
+      body: "Pick a plan at any Polaris merchant. The loan opens on chain in one transaction, against a limit your repayment history already earned.",
+    },
+    {
+      n: "02",
+      head: "The keeper collects",
+      body: "Each instalment is simulated before it is sent, so a charge that would fail becomes a dunning notice instead of a burnt transaction. Gas is sponsored.",
+      href: "/docs",
+      cta: "How the keeper runs",
+    },
+    {
+      n: "03",
+      head: "Merchants are paid",
+      body: "Settlement leaves escrow on its own schedule. Repay on time and your limit grows; fall behind and only your collateral is at risk.",
+      href: "/limits",
+      cta: "How limits are set",
+    },
+  ]
+
+  return (
+    <div className="lg:col-span-2">
+      <hr className="rule mb-9 mt-2" />
+      <ol className="grid gap-x-12 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
+        {steps.map((s) => (
+          <li key={s.n}>
+            <p className="figure text-xs text-primary/70">{s.n}</p>
+            <h3 className="mt-2.5 text-base font-semibold">{s.head}</h3>
+            <p className="mt-2 max-w-[46ch] text-sm leading-relaxed text-foreground/50">{s.body}</p>
+            {s.href && (
+              <Link
+                href={s.href}
+                className="mt-3 inline-flex items-center gap-1 text-sm text-foreground/70 underline-offset-4 hover:text-primary hover:underline"
+              >
+                {s.cta} <ArrowUpRight className="size-3.5" />
+              </Link>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
+const KIND_LABEL: Record<string, string> = {
+  installment_charge: "Collected",
+  merchant_settlement: "Settled",
+  liquidation: "Liquidation check",
+  subscription_charge: "Subscription",
+  collateral_release: "Collateral released",
+}
+
+/*
+ * The verb has to carry the outcome.
+ *
+ * "Collected" printed in a slightly dimmer grey over a failed attempt still
+ * says the money moved, and a reader scanning the column takes the word before
+ * the colour. A failure says so in the word.
+ */
+function actionLabel(kind: string, outcome: string): string {
+  const verb = KIND_LABEL[kind] ?? kind
+  if (outcome === "failed") {
+    return kind === "installment_charge"
+      ? "Collection failed"
+      : kind === "merchant_settlement"
+        ? "Settlement failed"
+        : `${verb} failed`
+  }
+  if (outcome === "skipped") return `${verb} - nothing due`
+  return verb
+}
+
+/**
+ * The keeper, in its own words.
+ *
+ * Written from the receipts the keeper stores as it acts, not recomputed from
+ * the loan book, so a row here is first-hand. Failures are shown for the same
+ * reason: a feed that only ever shows green is a marketing asset, not evidence.
+ */
+function KeeperFeed() {
+  const { data } = useSWR<KeeperActivity>("/api/keeper/recent", fetcher, {
+    refreshInterval: 15_000,
+  })
+  const actions = data?.actions?.slice(0, 5)
+
+  return (
+    <div className="surface p-5">
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 className="label">Keeper activity</h2>
+        <span className="flex items-center gap-2 text-[0.6875rem] text-foreground/45">
+          <span className="size-1.5 rounded-full bg-primary" />
+          live
+        </span>
+      </div>
+
+      {actions === undefined ? (
+        <div className="mt-5 space-y-4" aria-hidden>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-9 rounded bg-foreground/4" />
+          ))}
+        </div>
+      ) : actions.length === 0 ? (
+        <p className="mt-5 text-sm leading-relaxed text-foreground/50">
+          The keeper has not run yet. Once it does, every action it takes appears here with its
+          transaction.
+        </p>
+      ) : (
+        <ol className="mt-4">
+          {actions.map((a) => (
+            <li
+              key={`${a.subject}-${a.at}`}
+              className="flex items-baseline justify-between gap-4 border-t border-foreground/8 py-3 first:border-t-0 first:pt-1"
+            >
+              <div className="min-w-0">
+                {/* No truncate here: clipping "Settlement failed 1740.07 USDC"
+                    to "Settlement failed 1740.07 ..." hides the currency and
+                    reads as a rendering fault. Let it wrap. */}
+                <p className="text-sm">
+                  <span
+                    className={
+                      a.outcome === "succeeded"
+                        ? "text-primary"
+                        : a.outcome === "failed"
+                          ? "text-amber-400"
+                          : "text-foreground/45"
+                    }
+                  >
+                    {actionLabel(a.kind, a.outcome)}
+                  </span>
+                  {a.amount ? <span className="figure text-foreground/85"> {a.amount}</span> : null}
+                </p>
+                <p className="mt-0.5 truncate text-xs text-foreground/40">{a.subject}</p>
+              </div>
+
+              <div className="shrink-0 text-right">
+                {a.txLink ? (
+                  <a
+                    href={a.txLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="figure inline-flex items-center gap-1 text-xs text-foreground/55 underline-offset-4 hover:text-foreground hover:underline"
+                  >
+                    {a.txHash?.slice(0, 8)}
+                    <ArrowUpRight className="size-3" />
+                  </a>
+                ) : (
+                  <span className="text-xs text-foreground/35">
+                    {a.outcome === "skipped" ? "nothing due" : "no transaction"}
+                  </span>
+                )}
+                <p className="mt-0.5 text-[0.6875rem] text-foreground/35">
+                  {relative(a.at)}
+                  {a.sponsored ? " - gas sponsored" : ""}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   )
 }
 

@@ -1,26 +1,27 @@
-# @polarispay/sdk
+# polarispay-sdk
 
 Three payment modes, one object. Pay now, subscribe, or split into instalments.
 
 ```bash
-pnpm add @polarispay/sdk ethers
+npm install polarispay-sdk ethers
 ```
 
 ```ts
-import { createPolaris } from "@polarispay/sdk";
+import { createPolaris } from "polarispay-sdk";
 
 const polaris = createPolaris();
 ```
 
 That is the setup. It defaults to the live Sepolia deployment, reads the token's
 decimals from the token, approves only when the allowance is short, switches the
-wallet to the right chain, and returns a plain result object instead of throwing.
+wallet to the right chain (and offers to add it if the wallet has never seen it),
+and returns a plain result object instead of throwing.
 
 ## Pay now
 
 ```ts
 const result = await polaris.pay({
-  merchant: "0x…",
+  merchant: "0x...",
   amount: "25.00",
   orderId: "ORD-1042",
 });
@@ -29,7 +30,7 @@ if (result.ok) console.log(result.explorerUrl);
 else console.log(result.error);
 ```
 
-The same `orderId` can never be charged twice — a retrying checkout gets a clean
+The same `orderId` can never be charged twice. A retrying checkout gets a clean
 rejection rather than a second charge.
 
 ## Subscribe
@@ -65,15 +66,28 @@ than watching a wallet popup fail. The buyer signs one approval; your backend
 opens the plan, so the buyer pays no gas to start it. A keeper collects each
 instalment on schedule without them coming back.
 
-`payLater` posts to `/api/checkout` by default — point `endpoint` at your own.
+`payLater` posts to `/api/checkout` by default. Point `endpoint` at your own.
 
-## Credit and collateral
+## Reading credit without a wallet
+
+Pass `rpcUrl` and the read methods never touch a wallet, which is what makes an
+eligibility badge renderable on a product page before the buyer connects
+anything:
 
 ```ts
-const credit = await polaris.getCredit();
-// { score: 612, limit: "950.00", baseLimit: "500.00",
-//   collateralLocked: "300.00", collateralBoost: "450.00", … }
+const polaris = createPolaris({ rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com" });
 
+const credit = await polaris.getCredit("0xBuyer...");
+// { score: 612, limit: "950.00", baseLimit: "500.00",
+//   collateralLocked: "300.00", collateralBoost: "450.00", ... }
+```
+
+Without `rpcUrl`, reads borrow the wallet's provider and connecting is the price
+of that.
+
+## Collateral
+
+```ts
 await polaris.lockCollateral({ amount: "300.00" });
 await polaris.withdrawCollateral({ amount: "300.00" });
 ```
@@ -84,13 +98,34 @@ blocked while a loan is outstanding, and `withdrawable` tells you when it is not
 ## React
 
 ```tsx
-import { PayWithPolarisBNPL } from "@polarispay/sdk";
+import { PayWithPolarisBNPL } from "polarispay-sdk/react";
 
 <PayWithPolarisBNPL apiKey={key} amount="200.00" orderId="ORD-1" />
 ```
 
-A thin shell over the same functions. Building your own UI never means
-reimplementing decimals, approvals, or chain switching.
+The widget is a separate entry point on purpose. React is an optional peer
+dependency, and a root barrel that re-exported the component would have made it
+mandatory: a Node backend importing `createPolaris` would fail to resolve
+`react/jsx-runtime` before running a line.
+
+It is presentation only. Every chain interaction goes through the same
+`createPolaris`, so the widget and a hand-rolled checkout cannot drift apart on
+decimals, allowance headroom, or error copy.
+
+Colours come from CSS custom properties with dark defaults, so it matches the
+surrounding page without a stylesheet to import:
+
+```css
+.checkout {
+  --polaris-bg: #fff;
+  --polaris-fg: #0b0f14;
+  --polaris-muted: #64748b;
+  --polaris-border: #e2e8f0;
+  --polaris-accent: #16a34a;
+  --polaris-accent-fg: #fff;
+  --polaris-radius: 14px;
+}
+```
 
 ## Errors
 
@@ -108,14 +143,18 @@ can act on:
 ## Another deployment
 
 ```ts
-import { createPolaris, SEPOLIA } from "@polarispay/sdk";
+import { createPolaris, SEPOLIA } from "polarispay-sdk";
 
-createPolaris({ contracts: { ...SEPOLIA, loanEngine: "0x…" } });
+createPolaris({ contracts: { ...SEPOLIA, loanEngine: "0x..." } });
 ```
 
 ## Note on decimals
 
-Decimals are read from the token on every call. An earlier version of this SDK
-hardcoded 18 against a 6-decimal stablecoin, which overcharged by a factor of
-10^12 — the kind of bug that only surfaces in production, so the assumption is
-gone rather than corrected.
+Decimals are read from the token, never assumed, and cached for the lifetime of
+the client. An earlier version hardcoded 18 against a 6-decimal stablecoin, which
+overcharged by a factor of 10^12 -- the kind of bug that only surfaces in
+production, so the assumption is gone rather than corrected.
+
+## License
+
+MIT

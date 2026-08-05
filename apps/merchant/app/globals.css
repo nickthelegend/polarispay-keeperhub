@@ -226,3 +226,183 @@
     transform: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Layout layer.
+ *
+ * The tokens above solved colour and surface. What was still missing was the
+ * page: every route put its objects straight onto flat black, so a single card
+ * read as debris rather than as content, and a sparse page read as a bug.
+ *
+ * Three things fix that, and they are all here rather than repeated per route:
+ * an ambient ground that gives the black somewhere to be, a page shell that
+ * gives every route the same opening rhythm, and grids that stay composed when
+ * they hold one item instead of nine.
+ * ------------------------------------------------------------------------ */
+
+/*
+ * Ambient ground.
+ *
+ * A hairline grid plus one soft lime bloom, both fixed, both far below the
+ * content. This is doing perceptual work rather than decoration: a plane needs
+ * a surface behind it to read as raised, and pure #0b0b0b gives it none. Kept
+ * under 4% opacity so it never competes with a figure.
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      60rem 40rem at 78% -8%,
+      color-mix(in oklab, var(--color-primary) 9%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(color-mix(in oklab, var(--color-foreground) 3%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--color-foreground) 3%, transparent) 1px, transparent 1px);
+  background-size: 100% 100%, 64px 64px, 64px 64px;
+  /* Fade the grid out downward so it frames the fold and then gets out of the way. */
+  mask-image: linear-gradient(to bottom, black, black 40rem, transparent 70rem);
+}
+
+/* Content has to sit above the ground. */
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+@layer components {
+  /* The column every route shares. One max-width, one gutter, one rhythm. */
+  .shell {
+    width: 100%;
+    max-width: 78rem;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+
+  @media (min-width: 768px) {
+    .shell {
+      padding-inline: 2rem;
+    }
+  }
+
+  /*
+   * Page opening. An eyebrow, a title, a line of prose, and optionally an
+   * action on the right. Every route using the same block is most of what
+   * makes a set of pages feel like one product.
+   */
+  .page-head {
+    display: grid;
+    gap: 0.75rem;
+    padding-block: 3rem 2rem;
+  }
+
+  @media (min-width: 900px) {
+    .page-head[data-actions] {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      column-gap: 2rem;
+    }
+  }
+
+  .page-title {
+    font-size: clamp(2rem, 1.2rem + 2.6vw, 3.25rem);
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+    font-weight: 500;
+    text-wrap: balance;
+  }
+
+  .page-lede {
+    max-width: 52ch;
+    color: color-mix(in oklab, var(--color-foreground) 62%, transparent);
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+
+  /*
+   * Auto-fit grid with a floor.
+   *
+   * `auto-fill` with a minimum is what stops one merchant from rendering as a
+   * lonely third of a row: the track sizes to the content it has instead of
+   * reserving space for content it does not.
+   */
+  .grid-cards {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr));
+  }
+
+  /* Asymmetric split for a primary object beside its supporting column. */
+  .split {
+    display: grid;
+    gap: 1.25rem;
+    align-items: start;
+  }
+
+  @media (min-width: 960px) {
+    .split {
+      grid-template-columns: minmax(0, 1.62fr) minmax(20rem, 1fr);
+    }
+  }
+
+  /*
+   * Stat tile. The label sits above the figure, not beside it, because a column
+   * of money is read down the digits and anything to the left of them breaks
+   * that column.
+   */
+  .stat {
+    display: grid;
+    gap: 0.375rem;
+    padding: 1.125rem 1.25rem;
+  }
+
+  .stat-value {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem);
+  }
+
+  .stat-note {
+    font-size: 0.75rem;
+    color: color-mix(in oklab, var(--color-foreground) 55%, transparent);
+  }
+
+  /*
+   * Empty state.
+   *
+   * The version this replaces was a sentence and a button centred in a void,
+   * which reads as a page that failed to load rather than one with nothing in
+   * it yet. A hatched plane at least says "this is the container, and it is
+   * empty" -- the shape of the thing survives its own emptiness.
+   */
+  .empty {
+    display: grid;
+    place-items: center;
+    gap: 0.75rem;
+    padding: clamp(2.5rem, 6vw, 4.5rem) 1.5rem;
+    text-align: center;
+    border: 1px dashed color-mix(in oklab, var(--color-foreground) 14%, transparent);
+    border-radius: var(--radius);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      color-mix(in oklab, var(--color-foreground) 2.5%, transparent) 0 1px,
+      transparent 1px 9px
+    );
+  }
+
+  /* A hairline plate for grouped rows -- lighter than a surface, still an object. */
+  .plate {
+    border: 1px solid color-mix(in oklab, var(--color-foreground) 8%, transparent);
+    border-radius: var(--radius);
+    overflow: clip;
+  }
+
+  .plate > * + * {
+    border-top: 1px solid color-mix(in oklab, var(--color-foreground) 8%, transparent);
+  }
+}

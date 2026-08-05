@@ -101,63 +101,78 @@ export default function PlansPage() {
 
   return (
     <Shell>
-      <section className="border-b border-white/10 pb-10">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-white/45">
-          Available to spend
-        </p>
-        <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-2">
-          <span className="font-mono text-[clamp(2.75rem,7vw,4.5rem)] font-medium leading-none tabular-nums tracking-[-0.03em] text-white">
-            {isLoading ? <Bar w="8ch" /> : (data?.availableDisplay ?? "0.00")}
-          </span>
-          <span className="font-mono text-lg text-white/45">USDC</span>
-        </div>
-
-        <div className="mt-7 max-w-md">
-          <div className="flex items-baseline justify-between font-mono text-[11px] text-white/45">
-            <span>{data ? `${data.usedDisplay} in use` : "-"}</span>
-            <span>{data ? `${data.limitDisplay} limit` : "-"}</span>
-          </div>
-          {/* A single utilisation rule, not a decorative bar: the fill is the
-              share of the limit already committed. */}
-          <div className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-white/70 transition-[width] duration-700 ease-out"
-              style={{ width: `${utilisation * 100}%` }}
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-10 border-b border-white/10 py-10 sm:grid-cols-[1fr_auto]">
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/40">
-            Next collection
-          </p>
-          {isLoading ? (
-            <p className="mt-2.5 text-2xl">
-              <Bar w="10ch" />
-            </p>
-          ) : data?.nextDueAt ? (
-            <p className="mt-2.5 font-mono text-2xl tabular-nums text-white">
-              {data.nextDueDisplay}
-              <span className="ml-3 text-sm font-normal text-white/45">
-                {formatDue(data.nextDueAt)}
+      {/*
+        Three bands stacked full-width made the most important number on the
+        page carry no more weight than the paragraph under it. As a bento the
+        balance keeps the largest plane and the two supporting figures sit
+        beside it, which is the order they are actually read in.
+      */}
+      <section className="grid gap-4 lg:grid-cols-[1.7fr_1fr]">
+        <div className="surface flex flex-col justify-between gap-8 p-6 md:p-8">
+          <div>
+            <p className="label">Available to spend</p>
+            <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-2">
+              <span className="figure-lg font-mono text-[clamp(2.75rem,7vw,4.5rem)] font-medium text-white">
+                {isLoading ? <Bar w="8ch" /> : (data?.availableDisplay ?? "0.00")}
               </span>
-            </p>
-          ) : (
-            <p className="mt-2.5 text-lg text-white/45">Nothing scheduled</p>
-          )}
-          <p className="mt-3 max-w-[52ch] text-[13px] leading-relaxed text-white/45">
-            Collected automatically from your wallet. Keep the balance topped up and there is
-            nothing for you to do.
-          </p>
+              <span className="font-mono text-lg text-white/45">USDC</span>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-baseline justify-between font-mono text-[11px] text-white/45">
+              <span>{data ? `${data.usedDisplay} in use` : "-"}</span>
+              <span>{data ? `${data.limitDisplay} limit` : "-"}</span>
+            </div>
+            {/* A single utilisation rule, not a decorative bar: the fill is the
+                share of the limit already committed. */}
+            <div className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-white/70 transition-[width] duration-700 ease-out"
+                style={{ width: `${utilisation * 100}%` }}
+              />
+            </div>
+          </div>
         </div>
 
-        <ScorePanel data={data} loading={isLoading} />
+        <div className="grid gap-4">
+          <div className="surface p-6">
+            <p className="label">Next collection</p>
+            {isLoading ? (
+              <p className="mt-2.5 text-2xl">
+                <Bar w="10ch" />
+              </p>
+            ) : data?.nextDueAt ? (
+              <p className="figure mt-2.5 font-mono text-2xl text-white">
+                {data.nextDueDisplay}
+                <span className="ml-3 text-sm font-normal text-white/45">
+                  {formatDue(data.nextDueAt)}
+                </span>
+              </p>
+            ) : (
+              <p className="mt-2.5 text-lg text-white/45">Nothing scheduled</p>
+            )}
+            <p className="mt-3 text-[13px] leading-relaxed text-white/45">
+              Collected automatically from your wallet. Keep the balance topped up and there is
+              nothing for you to do.
+            </p>
+          </div>
+
+          <div className="surface p-6">
+            <ScorePanel data={data} loading={isLoading} />
+          </div>
+        </div>
       </section>
 
-      <section className="pt-10">
-        <h2 className="text-lg font-semibold tracking-tight text-white">Your plans</h2>
+      <section className="pt-12">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="text-lg font-semibold tracking-tight text-white">Your plans</h2>
+          {data?.plans.length ? (
+            <span className="label">
+              {data.plans.length} total
+            </span>
+          ) : null}
+        </div>
         <div className="mt-5">
           {isLoading ? (
             [0, 1, 2].map((i) => <PlanSkeleton key={i} />)
@@ -181,10 +196,15 @@ export default function PlansPage() {
 
 /* ---------------------------------------------------------------- */
 
+/**
+ * `bg-background` used to sit on this wrapper, which painted an opaque plane
+ * over the ambient ground and left the page's own panels floating on flat
+ * black. The body already supplies the background; a page should not repaint it.
+ */
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <main className="mx-auto max-w-[1080px] px-6 py-14 md:px-10">{children}</main>
+    <div className="min-h-screen text-foreground">
+      <main className="shell max-w-[1080px] py-14">{children}</main>
     </div>
   )
 }
@@ -196,10 +216,8 @@ function ScorePanel({ data, loading }: { data?: CreditProfile; loading: boolean 
   const position = Math.max(0, Math.min(1, (score - 300) / 550))
 
   return (
-    <div className="sm:w-[15rem]">
-      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/40">
-        Polaris score
-      </p>
+    <div>
+      <p className="label">Polaris score</p>
       <div className="mt-2.5 flex items-baseline gap-2.5">
         <span className="font-mono text-2xl tabular-nums text-white">
           {loading ? <Bar w="3ch" /> : score}

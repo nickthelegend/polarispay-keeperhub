@@ -334,7 +334,19 @@ export class PolarisKeeper {
   /** Pay a merchant out of the escrow. */
   async settleMerchant(params: SettleMerchantParams): Promise<Receipt> {
     const attempt = params.attempt ?? 1;
-    const actionId = `merchant-${params.merchantId}-order-${params.orderId}`;
+    /*
+     * The amount belongs in the action id, not just the order list.
+     *
+     * Keyed on the orders alone, a second settlement covering the same orders
+     * for a larger amount -- which is the normal case, because more instalments
+     * collect between runs -- arrives as the same key with a different body and
+     * KeeperHub rejects it as a conflict. Observed in a live run: five orders,
+     * same key, more money, settlement refused.
+     *
+     * Including the amount makes a genuinely different payout a genuinely
+     * different action, while an identical retry still collapses onto the first.
+     */
+    const actionId = `merchant-${params.merchantId}-order-${params.orderId}-amt-${params.amountRaw}`;
     const call = {
       contractAddress: params.escrowAddress,
       chainId: this.deployment.chainId,

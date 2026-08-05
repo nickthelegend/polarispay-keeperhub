@@ -20,7 +20,8 @@
     "purge": "npm run build && node dist/purge-unbacked.js",
     "test": "npm run build && node --test --experimental-strip-types test/*.test.ts",
     "reconcile": "npm run build && node dist/reconcile-cli.js",
-    "index": "npm run build && node dist/index-cli.js"
+    "index": "npm run build && node dist/index-cli.js",
+    "demo:arm": "npm run build && node dist/demo-arm.js"
   },
   "dependencies": {
     "mongodb": "^6.12.0"

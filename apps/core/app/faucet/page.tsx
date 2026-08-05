@@ -29,7 +29,12 @@ const ABI = [
 
 export default function FaucetPage() {
   return (
-    <ConnectGate>
+    <ConnectGate
+      title="Connect to get test tokens"
+      reason="The faucet sends Sepolia test tokens to an address, so it needs one to send them to."
+      previewLabel="Your balances"
+      previewNote="your test token balances and what the faucet can send"
+    >
       <Faucet />
     </ConnectGate>
   )

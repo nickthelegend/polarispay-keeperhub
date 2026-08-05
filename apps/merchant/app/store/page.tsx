@@ -368,24 +368,7 @@ function ProductTile({
         selected ? 'surface-selected' : ''
       }`}
     >
-      {/* No photography in this demo, so the mark is drawn from the product's
-          own initials rather than filled with a stock image that would be a
-          lie about the catalogue. */}
-      <span
-        aria-hidden
-        className={`grid size-14 shrink-0 place-items-center rounded-[calc(var(--radius)-3px)] border font-mono text-base font-semibold transition-colors ${
-          selected
-            ? 'border-primary/40 bg-primary/12 text-primary'
-            : 'border-foreground/10 bg-foreground/[0.04] text-foreground/40'
-        }`}
-      >
-        {product.name
-          .split(' ')
-          .map((w) => w[0])
-          .join('')
-          .slice(0, 2)
-          .toUpperCase()}
-      </span>
+      <ProductMark id={product.id} selected={selected} />
 
       <span className="min-w-0 flex-1">
         <span className="block font-medium leading-tight">{product.name}</span>
@@ -399,6 +382,66 @@ function ProductTile({
         </span>
       </span>
     </button>
+  );
+}
+
+/**
+ * The product mark.
+ *
+ * Two initials in a box was honest -- there is no photography for this
+ * catalogue, and a stock photo would have been a claim about goods that do not
+ * exist -- but it left a shop looking like a spreadsheet. A drawing keeps the
+ * honesty: nobody mistakes line art for a product shot, and it still gives each
+ * row something to recognise before reading the label.
+ *
+ * Paths are on a 32x32 grid, stroked with `currentColor` so the selected state
+ * inherits the accent rather than needing a second set of colours.
+ */
+function ProductMark({ id, selected }: { id: string; selected: boolean }) {
+  const art: Record<string, React.ReactNode> = {
+    'SKU-KEYS': (
+      <>
+        <rect x="3" y="10" width="26" height="15" rx="2.5" />
+        <path d="M7 14h3M12 14h3M17 14h3M22 14h3M7 18h3M12 18h8M22 18h3M11 22h10" />
+      </>
+    ),
+    'SKU-CANS': (
+      <>
+        <path d="M6 20v-4a10 10 0 0 1 20 0v4" />
+        <rect x="3" y="19" width="6" height="9" rx="2.5" />
+        <rect x="23" y="19" width="6" height="9" rx="2.5" />
+      </>
+    ),
+    'SKU-DESK': (
+      <>
+        <path d="M3 12h26" />
+        <path d="M7 12v16M25 12v16" />
+        <path d="M7 20h18" />
+      </>
+    ),
+  };
+
+  return (
+    <span
+      aria-hidden
+      className={`grid size-14 shrink-0 place-items-center rounded-[calc(var(--radius)-3px)] border transition-colors ${
+        selected
+          ? 'border-primary/40 bg-primary/12 text-primary'
+          : 'border-foreground/10 bg-foreground/[0.04] text-foreground/35'
+      }`}
+    >
+      <svg
+        viewBox="0 0 32 32"
+        className="size-7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {art[id] ?? <circle cx="16" cy="16" r="10" />}
+      </svg>
+    </span>
   );
 }
 
