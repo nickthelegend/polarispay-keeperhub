@@ -24,6 +24,16 @@ export type Installment = {
   /** Set while in the dunning ladder; the keeper skips until this passes. */
   nextAttemptAt?: string;
   lastFailureKind?: string;
+  /**
+   * The transaction that paid this instalment.
+   *
+   * The collection job has always written this, but the type did not declare
+   * it, and the keeper runs under Node's strip-only TypeScript mode -- which
+   * removes annotations without checking them. So the field was dropped on
+   * every write and no collected instalment carried a link to its transaction,
+   * which is precisely the thing an on-chain payments product exists to offer.
+   */
+  transactionHash?: string;
 };
 
 export type Loan = {

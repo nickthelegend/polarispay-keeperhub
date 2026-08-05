@@ -13,6 +13,8 @@
  * apps/merchant/contracts/PolarisMerchantEscrow.sol.
  */
 
+import { createHash } from "node:crypto";
+
 import { chargeKey, encodeArgs, type KeeperHubClient } from "./client.js";
 import { isKeeperHubError, KeeperHubError } from "./errors.js";
 import {
@@ -64,20 +66,34 @@ export const LOAN_ENGINE_ABI = JSON.stringify([
   },
 ]);
 
-/** `PolarisMerchantEscrow.settlePayment(uint256,string,string)`. */
-export const MERCHANT_ESCROW_ABI = JSON.stringify([
+/**
+ * `BatchSettlement` -- the deployed contract that actually pays merchants.
+ *
+ * This replaces a `PolarisMerchantEscrow` ABI whose contract does not exist
+ * anywhere in this repo. The keeper was calling `settlePayment` on the
+ * merchant's own payout address, which is an EOA: under EVM rules a call to a
+ * codeless address always succeeds and does nothing, so every settlement mined
+ * with status 1, emitted zero logs, moved zero funds, and was recorded as a
+ * success. Verified on chain -- payout balance identical either side of the
+ * settlement block.
+ */
+export const BATCH_SETTLEMENT_ABI = JSON.stringify([
   {
     type: "function",
-    name: "settlePayment",
+    name: "settleBatch",
     stateMutability: "nonpayable",
     inputs: [
-      { name: "amount", type: "uint256" },
-      { name: "orderId", type: "string" },
-      { name: "details", type: "string" },
+      { name: "batchId", type: "bytes32" },
+      { name: "merchants", type: "address[]" },
+      { name: "amounts", type: "uint256[]" },
+      { name: "memos", type: "bytes32[]" },
     ],
-    outputs: [],
+    outputs: [{ name: "totalAmount", type: "uint256" }],
   },
 ]);
+
+/** Kept as an alias so existing imports do not break. */
+export const MERCHANT_ESCROW_ABI = BATCH_SETTLEMENT_ABI;
 
 /** `PolarisPayments` -- the subscription entry points the keeper calls. */
 export const PAYMENTS_ABI = JSON.stringify([
@@ -103,6 +119,8 @@ export type PolarisDeployment = {
   scoreManager?: string;
   poolManager?: string;
   payments?: string;
+  /** `BatchSettlement`, the contract merchants are actually paid from. */
+  batchSettlement?: string;
 };
 
 export type CollectInstallmentParams = {
@@ -130,13 +148,31 @@ export type ChargeSubscriptionParams = {
 
 export type SettleMerchantParams = {
   merchantId: string;
-  escrowAddress: string;
+  /**
+   * Where the money goes. Named `escrowAddress` before, which is what led to it
+   * being used as a call target rather than a transfer recipient.
+   */
+  payoutAddress: string;
   amountRaw: string;
   orderId: string;
   details?: string;
   amountDisplay?: string;
   attempt?: number;
 };
+
+/**
+ * A deterministic bytes32 from an arbitrary string, for batch ids and memos.
+ *
+ * sha256 rather than keccak256 because this package has no dependencies and
+ * intends to keep it that way -- pulling in a 300kB crypto library to hash one
+ * short string would be a poor trade. The contract treats the batch id as an
+ * opaque key: it only ever compares it for equality against
+ * `batchExecuted`, so any collision-resistant function works. Node ships
+ * sha256; it does not ship keccak.
+ */
+function bytes32(value: string): string {
+  return `0x${createHash("sha256").update(value).digest("hex")}`;
+}
 
 export class PolarisKeeper {
   constructor(
@@ -331,36 +367,36 @@ export class PolarisKeeper {
     }
   }
 
-  /** Pay a merchant out of the escrow. */
+  /**
+   * Pay a merchant, through the deployed BatchSettlement contract.
+   *
+   * The previous implementation called `settlePayment` on the merchant's own
+   * payout address. That address is an EOA, and a call to a codeless address
+   * cannot revert -- so every settlement mined successfully, emitted no logs,
+   * transferred nothing, and was recorded as paid. The merchant's balance was
+   * byte-identical either side of the settlement block.
+   *
+   * `settleBatch` is a real contract call against a real balance, and it fails
+   * loudly when it cannot pay. It also carries its own on-chain idempotency via
+   * `batchExecuted[batchId]`, which is why the batch id is a hash of the payout
+   * itself: the same merchants for the same amounts can never pay twice, no
+   * matter how many times the keeper is run.
+   */
   async settleMerchant(params: SettleMerchantParams): Promise<Receipt> {
     const attempt = params.attempt ?? 1;
-    /*
-     * The amount belongs in the action id, not just the order list.
-     *
-     * Keyed on the orders alone, a second settlement covering the same orders
-     * for a larger amount -- which is the normal case, because more instalments
-     * collect between runs -- arrives as the same key with a different body and
-     * KeeperHub rejects it as a conflict. Observed in a live run: five orders,
-     * same key, more money, settlement refused.
-     *
-     * Including the amount makes a genuinely different payout a genuinely
-     * different action, while an identical retry still collapses onto the first.
-     */
-    const actionId = `merchant-${params.merchantId}-order-${params.orderId}-amt-${params.amountRaw}`;
-    const call = {
-      contractAddress: params.escrowAddress,
-      chainId: this.deployment.chainId,
-      functionName: "settlePayment",
-      functionArgs: encodeArgs([
-        params.amountRaw,
-        params.orderId,
-        params.details ?? "",
-      ]),
-      abi: MERCHANT_ESCROW_ABI,
-    };
-
+    const settlement = this.deployment.batchSettlement;
+    const settlementTarget = settlement ?? "unconfigured";
     const base = {
-      actionId,
+      /*
+       * The action is (who, what orders, how much, through which rail).
+       *
+       * Dropping the rail from the key meant that repointing settlement from
+       * the old phantom escrow onto BatchSettlement re-sent an identical key
+       * with a completely different payload, and KeeperHub refused it -- which
+       * is exactly what it should do. A payout through a different contract is
+       * a different action and deserves a different key.
+       */
+      actionId: `merchant-${params.merchantId}-order-${params.orderId}-amt-${params.amountRaw}-via-${settlementTarget}`,
       kind: "merchant_settlement" as const,
       merchantId: params.merchantId,
       amount: params.amountDisplay ?? params.amountRaw,
@@ -368,10 +404,50 @@ export class PolarisKeeper {
       attempt,
     };
 
+    if (!settlement) {
+      const receipt: Receipt = {
+        ...base,
+        outcome: "failed",
+        error: {
+          kind: "validation",
+          message:
+            "No settlement contract configured. Set POLARIS_BATCH_SETTLEMENT -- without it there is nowhere to pay a merchant from.",
+        },
+        createdAt: new Date().toISOString(),
+      };
+      await this.receipts.put(receipt);
+      return receipt;
+    }
+
+    /*
+     * The batch id is derived from what is being paid, not from when. Two runs
+     * that would pay the same merchant the same amount collapse onto one batch
+     * the contract has already executed; a genuinely larger payout is a
+     * different batch. This is the same rule the idempotency key follows, moved
+     * on chain where it cannot be bypassed by rotating a header.
+     */
+    const batchId = bytes32(
+      `${params.merchantId}|${params.payoutAddress}|${params.amountRaw}|${params.orderId}`
+    );
+    const memo = bytes32(params.orderId);
+
+    const call = {
+      contractAddress: settlement,
+      chainId: this.deployment.chainId,
+      functionName: "settleBatch",
+      functionArgs: encodeArgs([
+        batchId,
+        [params.payoutAddress],
+        [params.amountRaw],
+        [memo],
+      ]),
+      abi: BATCH_SETTLEMENT_ABI,
+    };
+
     try {
       const sim = await this.kh.assertWouldSucceed(call);
       const status = await this.kh.executeAndConfirm(call, {
-        idempotencyKey: chargeKey(actionId, attempt),
+        idempotencyKey: chargeKey(base.actionId, attempt),
       });
       const receipt = receiptFromStatus(
         { ...base, simulation: { ok: true, gasEstimate: sim?.gasEstimate } },

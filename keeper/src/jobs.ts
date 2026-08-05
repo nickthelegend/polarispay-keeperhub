@@ -317,7 +317,8 @@ export async function runSubscriptions(opts: {
 
 export type PendingSettlement = {
   merchantId: string;
-  escrowAddress: string;
+  /** The merchant's payout address -- a recipient, never a call target. */
+  payoutAddress: string;
   amountRaw: string;
   amountDisplay: string;
   orderId: string;

@@ -94,7 +94,12 @@ function build() {
   const { book, receipts, backend } = storage();
   const keeper = new PolarisKeeper(
     client,
-    { chainId: config.chainId, loanEngine: config.loanEngine, payments: config.payments },
+    {
+      chainId: config.chainId,
+      loanEngine: config.loanEngine,
+      payments: config.payments,
+      batchSettlement: config.batchSettlement,
+    },
     receipts
   );
   return { config, client, keeper, book, receipts, backend };
@@ -107,7 +112,7 @@ async function doctor(): Promise<void> {
   console.log(`  API key:        ${config.apiKey.slice(0, 6)}… (${config.apiKey.length} chars)`);
   console.log(`  Chain:          ${config.chainId}`);
   console.log(`  LoanEngine:     ${config.loanEngine}`);
-  console.log(`  Merchant escrow:${config.merchantEscrow ?? " (unset)"}`);
+  console.log(`  Settlement:     ${config.batchSettlement ?? "(unset) -- merchants cannot be paid"}`);
   console.log(`  Payments:       ${config.payments ?? "(unset -- subscriptions will be skipped)"}`);
   console.log(`  Store:          ${backend}${backend === "file" ? ` (${LOAN_BOOK_PATH})` : ""}`);
   console.log(`  Dry run:        ${config.dryRun}`);
@@ -163,6 +168,36 @@ async function liquidate(): Promise<JobResult> {
   return await runLiquidation({ keeper, book, dryRun: config.dryRun });
 }
 
+/**
+ * Did this transaction actually move a token?
+ *
+ * Deliberately conservative: an unreadable receipt returns false, because
+ * "cannot tell" and "was paid" must never be the same answer for money. The
+ * cost of a false negative is a settlement retried next run; the cost of a
+ * false positive is a merchant told they were paid when they were not.
+ */
+async function transferOccurred(hash: string | undefined, rpcUrl: string): Promise<boolean> {
+  if (!hash) return false;
+  try {
+    const res = await fetch(rpcUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_getTransactionReceipt",
+        params: [hash],
+      }),
+    });
+    const body = (await res.json()) as { result?: { status?: string; logs?: unknown[] } };
+    const receipt = body.result;
+    if (!receipt || receipt.status !== "0x1") return false;
+    return (receipt.logs?.length ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
 async function settle(): Promise<JobResult> {
   const { keeper, config, backend } = build();
 
@@ -184,11 +219,33 @@ async function settle(): Promise<JobResult> {
       const settlement = pending.find((p) => receipt.actionId.includes(p.merchantId));
       if (!settlement) continue;
 
-      await markSettled(settlement, receipt.execution?.transactionHash);
+      /*
+       * Confirm the money actually moved before recording it as paid.
+       *
+       * `outcome: "succeeded"` only says the transaction mined. It does not say
+       * anything was transferred -- the previous settlement path called a
+       * function on an EOA, which mines successfully and does nothing, and this
+       * loop dutifully marked five orders settled and fired a `settlement.paid`
+       * webhook for a payout of zero.
+       *
+       * A settlement that pays a merchant emits a Transfer. One that emits no
+       * logs at all moved nothing, whatever its status byte says.
+       */
+      const hash = receipt.execution?.transactionHash;
+      const moved = await transferOccurred(hash, config.rpcUrl);
+      if (!moved) {
+        console.error(
+          `[settlement] ${settlement.merchantId}: transaction ${hash ?? "(none)"} mined but ` +
+            "emitted no transfer. NOT marking settled -- the merchant has not been paid."
+        );
+        continue;
+      }
+
+      await markSettled(settlement, hash);
       await deliverWebhook(settlement.merchantId, "settlement.paid", {
         amount: settlement.amountDisplay,
         orderIds: settlement.orderId,
-        transactionHash: receipt.execution?.transactionHash,
+        transactionHash: hash,
       });
     }
   }

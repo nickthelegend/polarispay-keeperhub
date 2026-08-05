@@ -510,38 +510,93 @@ describe("409 classification", () => {
   });
 });
 
-describe("settlement idempotency", () => {
-  // A live run hit this: the same five orders settled twice, the second time
-  // for more money because more instalments had collected in between. Keyed on
-  // the orders alone, that is one key with two bodies, and KeeperHub correctly
-  // refused the second one.
-  const settleKey = async (amountRaw: string) => {
+describe("settlement", () => {
+  const SETTLEMENT_DEPLOYMENT = {
+    ...DEPLOYMENT,
+    batchSettlement: "0xc319dB6F56B3cdA82d2Bcb2eFA75e5c4993B705f",
+  };
+
+  const settle = async (amountRaw: string, orderId = "A,B,C") => {
     const { fetchImpl, calls } = stubFetch([
-      // assertWouldSucceed runs first and carries no key.
-      () => ({ status: 200, body: { success: true, gasEstimate: "21000" } }),
+      // assertWouldSucceed runs first and carries no idempotency key.
+      () => ({ status: 200, body: { success: true, gasEstimate: "48000" } }),
       () => ({ status: 202, body: { executionId: "e", status: "pending" } }),
       () => ({ status: 200, body: { executionId: "e", status: "completed" } }),
     ]);
     const kh = new KeeperHubClient({ apiKey: "kh_test", fetchImpl });
-    const keeper = new PolarisKeeper(kh, DEPLOYMENT, new InMemoryReceiptStore());
-    await keeper.settleMerchant({
+    const keeper = new PolarisKeeper(kh, SETTLEMENT_DEPLOYMENT, new InMemoryReceiptStore());
+    const receipt = await keeper.settleMerchant({
       merchantId: "m1",
-      escrowAddress: "0xEscrow",
+      payoutAddress: "0xPayout",
       amountRaw,
-      orderId: "A,B,C",
+      orderId,
     });
     const keyed = calls
       .map((c) => (c.init.headers as Record<string, string>)["Idempotency-Key"])
       .filter(Boolean);
-    assert.equal(keyed.length, 1, "exactly one call should carry a key");
-    return keyed[0];
+    return { receipt, calls, key: keyed[0] };
   };
 
-  it("gives a larger payout over the same orders a different key", async () => {
-    assert.notEqual(await settleKey("100000000"), await settleKey("250000000"));
+  // The bug this replaces: settlePayment was called on the merchant's payout
+  // address, which is an EOA. A call to a codeless address cannot revert, so
+  // every settlement "succeeded" while moving nothing.
+  it("targets the settlement contract, not the merchant's own address", async () => {
+    const { calls } = await settle("100000000");
+    const body = calls[0]!.body;
+    assert.equal(body.contractAddress, SETTLEMENT_DEPLOYMENT.batchSettlement);
+    assert.equal(body.functionName, "settleBatch");
+    assert.notEqual(body.contractAddress, "0xPayout");
   });
 
-  it("collapses an identical settlement onto one key", async () => {
-    assert.equal(await settleKey("100000000"), await settleKey("100000000"));
+  it("passes the payout address as a recipient, not a call target", async () => {
+    const { calls } = await settle("100000000");
+    const args = JSON.parse(calls[0]!.body.functionArgs);
+    assert.deepEqual(args[1], ["0xPayout"], "merchants array");
+    assert.deepEqual(args[2], ["100000000"], "amounts array");
+  });
+
+  // A live run hit this: the same five orders settled twice, the second time
+  // for more money because more instalments had collected in between.
+  it("gives a larger payout over the same orders a different key and batch", async () => {
+    const a = await settle("100000000");
+    const b = await settle("250000000");
+    assert.notEqual(a.key, b.key, "idempotency key");
+    const idA = JSON.parse(a.calls[0]!.body.functionArgs)[0];
+    const idB = JSON.parse(b.calls[0]!.body.functionArgs)[0];
+    assert.notEqual(idA, idB, "on-chain batch id");
+  });
+
+  it("collapses an identical settlement onto one key and one batch id", async () => {
+    const a = await settle("100000000");
+    const b = await settle("100000000");
+    assert.equal(a.key, b.key);
+    assert.equal(
+      JSON.parse(a.calls[0]!.body.functionArgs)[0],
+      JSON.parse(b.calls[0]!.body.functionArgs)[0]
+    );
+  });
+
+  it("produces a real bytes32 batch id and memo", async () => {
+    const { calls } = await settle("100000000");
+    const args = JSON.parse(calls[0]!.body.functionArgs);
+    for (const [label, v] of [["batchId", args[0]], ["memo", args[3][0]]] as const) {
+      assert.match(v, /^0x[0-9a-f]{64}$/, `${label} must be bytes32`);
+    }
+  });
+
+  // Without a settlement contract there is nowhere to pay from. Failing loudly
+  // beats the old behaviour, which was to report success and pay nobody.
+  it("fails instead of pretending when no settlement contract is configured", async () => {
+    const { fetchImpl } = stubFetch([]);
+    const kh = new KeeperHubClient({ apiKey: "kh_test", fetchImpl });
+    const keeper = new PolarisKeeper(kh, DEPLOYMENT, new InMemoryReceiptStore());
+    const receipt = await keeper.settleMerchant({
+      merchantId: "m1",
+      payoutAddress: "0xPayout",
+      amountRaw: "100000000",
+      orderId: "A",
+    });
+    assert.equal(receipt.outcome, "failed");
+    assert.match(receipt.error?.message ?? "", /POLARIS_BATCH_SETTLEMENT/);
   });
 });

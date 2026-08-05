@@ -17,7 +17,8 @@ import { formatUnits } from "./loanbook.js";
 
 export type PendingSettlement = {
   merchantId: string;
-  escrowAddress: string;
+  /** The merchant's payout address -- a recipient, never a call target. */
+  payoutAddress: string;
   amountRaw: string;
   amountDisplay: string;
   orderId: string;
@@ -77,7 +78,7 @@ export async function pendingSettlements(params: {
 
     out.push({
       merchantId,
-      escrowAddress: merchant.payoutAddress,
+      payoutAddress: merchant.payoutAddress,
       amountRaw: entry.total.toString(),
       amountDisplay: `${formatUnits(entry.total, 6)} USDC`,
       // One payout can cover several orders; the reference names all of them so
