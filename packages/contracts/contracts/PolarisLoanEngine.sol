@@ -250,8 +250,19 @@ contract PolarisLoanEngine is Ownable, ReentrancyGuard {
         // The whole collection model rests on a standing allowance. Paying the
         // merchant without one is a guaranteed total loss: every later repay
         // reverts and liquidation has nothing to pull.
+        //
+        // The comparison is against everything this borrower owes, not just the
+        // loan being opened. A single allowance backs every open plan at once,
+        // and nothing is drawn at origination -- so checking only `totalOwed`
+        // let one approval sized for a single plan support as many loans as the
+        // credit limit allowed. Settling the first legitimately exhausted the
+        // allowance, `repay` on the rest then reverted, and `_recoverFromAllowance`
+        // capped at an allowance of zero, so the full balance landed in badDebt
+        // while the borrower still held the money. Exactly the total loss the
+        // check above exists to prevent.
+        uint256 required = activeDebtOf[borrower] + totalOwed;
         uint256 allowed = stablecoin.allowance(borrower, address(this));
-        if (allowed < totalOwed) revert InsufficientAllowance(allowed, totalOwed);
+        if (allowed < required) revert InsufficientAllowance(allowed, required);
 
         loanId = ++loanCount;
         loans[loanId] = Loan({

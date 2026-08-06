@@ -339,9 +339,27 @@ export function buildInstallments(params: {
   return out;
 }
 
+/**
+ * Base units to a two-place decimal string.
+ *
+ * The sign is taken off the value and put back at the end, rather than being
+ * left on the two halves to fight over. Previously `value % base` kept its own
+ * minus sign, so `padStart` saw a string that was already long enough and
+ * padded nothing, and `slice(0, 2)` then read the minus as a digit position:
+ * -1500000 at 6 decimals rendered as "-1.-5", -500000 as "0.-5", and -1 as
+ * "0.00" with the sign silently gone.
+ *
+ * Nothing can currently reach it with a negative -- the contract caps `repay`
+ * at the remaining balance and `repaidAfterCollecting` caps at the room left --
+ * but this is exported from the package's public API and takes any bigint, so
+ * the invariant that saves it lives in three other files. One unclamped
+ * subtraction away from a borrower reading "-1.-5" as their balance.
+ */
 export function formatUnits(value: bigint, decimals: number): string {
   const base = 10n ** BigInt(decimals);
-  const whole = value / base;
-  const frac = (value % base).toString().padStart(decimals, "0").slice(0, 2);
-  return `${whole}.${frac}`;
+  const negative = value < 0n;
+  const abs = negative ? -value : value;
+  const whole = abs / base;
+  const frac = (abs % base).toString().padStart(decimals, "0").slice(0, 2).padEnd(2, "0");
+  return `${negative ? "-" : ""}${whole}.${frac}`;
 }

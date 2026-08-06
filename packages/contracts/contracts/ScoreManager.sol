@@ -48,6 +48,8 @@ contract ScoreManager is Ownable {
     event WriterSet(address indexed writer, bool allowed);
     event CollateralVaultSet(address indexed vault);
 
+    error VaultNotAContract(address vault);
+
     error NotWriter();
 
     modifier onlyWriter() {
@@ -62,7 +64,21 @@ contract ScoreManager is Ownable {
         emit WriterSet(writer, allowed);
     }
 
+    /**
+     * @notice Point at the collateral vault, or clear it with the zero address.
+     * @dev Rejects an address with no code. `creditLimitOf` wraps the vault call
+     *      in try/catch so a misbehaving vault degrades to "no boost" rather
+     *      than reverting every loan in the protocol, and that holds for a
+     *      contract with the wrong ABI. It does NOT hold for an address with no
+     *      code at all: the return-data decode failure is not catchable in
+     *      Solidity, so `creditLimitOf` reverts, and since `createLoan` calls it
+     *      on every origination, one owner typo bricks lending for every
+     *      borrower. Cheaper to refuse the address than to discover that later.
+     */
     function setCollateralVault(ICollateralBoost vault) external onlyOwner {
+        if (address(vault) != address(0) && address(vault).code.length == 0) {
+            revert VaultNotAContract(address(vault));
+        }
         collateralVault = vault;
         emit CollateralVaultSet(address(vault));
     }
