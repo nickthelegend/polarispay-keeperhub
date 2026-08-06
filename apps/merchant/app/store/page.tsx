@@ -38,6 +38,43 @@ const SCORES = [
 ];
 const PAYMENTS = ['function pay(address,uint256,string) returns (bytes32)'];
 
+/**
+ * The gap between instalments, in seconds, and the single source of truth for
+ * both the checkout request and the copy describing it. The engine enforces a
+ * one-hour floor -- the guard that closed the intervalSeconds=0 exploit, where
+ * a loan was interest-free and due in full at origination -- so hourly is the
+ * shortest demonstrable term.
+ *
+ * It lived inline in the request body while the panel beside it promised "one a
+ * fortnight", so the page described a schedule the code had never sent. Deriving
+ * the wording from the constant means the two cannot drift apart again.
+ */
+const INSTALMENT_INTERVAL_SECONDS = 3600;
+
+/**
+ * The interval in words, in the two forms the copy needs: "in an hour" and
+ * "every hour".
+ */
+function cadence(seconds: number): { after: string; every: string } {
+  const units: Array<[number, string]> = [
+    [604800, 'week'],
+    [86400, 'day'],
+    [3600, 'hour'],
+    [60, 'minute'],
+  ];
+  for (const [size, name] of units) {
+    if (seconds % size !== 0) continue;
+    const n = seconds / size;
+    const article = name === 'hour' ? 'an' : 'a';
+    return n === 1
+      ? { after: `${article} ${name}`, every: name }
+      : { after: `${n} ${name}s`, every: `${n} ${name}s` };
+  }
+  return { after: `${seconds} seconds`, every: `${seconds} seconds` };
+}
+
+const INSTALMENT_CADENCE = cadence(INSTALMENT_INTERVAL_SECONDS);
+
 type Product = { id: string; name: string; blurb: string; price: number };
 
 const CATALOGUE: Product[] = [
@@ -179,10 +216,7 @@ export default function Store() {
           amount: String(selected.price),
           orderId,
           installments: 4,
-          // The engine enforces a one-hour floor -- the guard that closed the
-          // intervalSeconds=0 exploit, where a loan was interest-free and due
-          // in full at origination. Hourly is the shortest demonstrable term.
-          intervalSeconds: 3600,
+          intervalSeconds: INSTALMENT_INTERVAL_SECONDS,
           chainId: CHAIN_ID,
         }),
       });
@@ -247,6 +281,11 @@ export default function Store() {
                 <p className="mt-1 text-sm text-foreground/50">{selected.name}</p>
 
                 <div className="mt-6 space-y-3">
+                  {/* Nothing is charged at checkout: the buyer signs an
+                      allowance and the backend opens the plan, and buildInstallments
+                      dates the first charge one full interval after origination.
+                      The panel used to say "First today, then one a fortnight",
+                      which got both the timing and the cadence wrong. */}
                   <PlanOption
                     selected={mode === 'later'}
                     onSelect={() => setMode('later')}
@@ -254,7 +293,7 @@ export default function Store() {
                     title={`4 payments of ${perInstalment}`}
                     caption={
                       affordable
-                        ? 'First today, then one a fortnight. Collected automatically.'
+                        ? `Nothing today. First in ${INSTALMENT_CADENCE.after}, then one every ${INSTALMENT_CADENCE.every}. Collected automatically.`
                         : `Above your ${wallet.limit} limit`
                     }
                     lead={perInstalment}
@@ -278,7 +317,7 @@ export default function Store() {
                   {busy === 'buy'
                     ? 'Working…'
                     : mode === 'later'
-                      ? `Pay ${perInstalment} today`
+                      ? 'Open plan, nothing due today'
                       : `Pay ${selected.price.toFixed(2)}`}
                 </button>
 
@@ -501,8 +540,11 @@ function PlanOption({
           />
         ))}
       </span>
+      {/* A split plan takes nothing at checkout, so only the pay-in-full option
+          can honestly say "today". The old line claimed the first instalment
+          was charged on the spot for both. */}
       <span className="mt-2 block font-mono text-[11px] text-foreground/40">
-        {schedule > 1 ? `${lead} today, then ${schedule - 1} more` : `${lead} today`}
+        {schedule > 1 ? `Nothing today, then ${schedule} × ${lead}` : `${lead} today`}
       </span>
     </button>
   );

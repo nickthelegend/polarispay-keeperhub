@@ -100,11 +100,13 @@ export async function GET(request: Request): Promise<NextResponse> {
       collectedThisWeekDisplay: formatUnits(collectedThisWeek, 6),
       activePlans,
       dunningPlans,
-      // Share of installments that were due and actually collected. Reported as
-      // 100% when nothing has come due yet, rather than 0, which would read as
-      // a total failure on a brand new merchant.
+      // Share of installments that were due and actually collected. Null when
+      // nothing has come due yet: this used to report 100%, which is a claim of
+      // a perfect record on a merchant who has never collected anything, and it
+      // disagreed with /api/global-stats, which sends null for the same case.
+      // The caller renders the absence rather than a flattering number.
       collectionRate:
-        installmentsDue === 0 ? 100 : (installmentsCollected / installmentsDue) * 100,
+        installmentsDue === 0 ? null : (installmentsCollected / installmentsDue) * 100,
       plans,
     });
   } catch (err) {
@@ -125,7 +127,9 @@ function emptyOverview() {
     collectedThisWeekDisplay: "0.00",
     activePlans: 0,
     dunningPlans: 0,
-    collectionRate: 100,
+    // A merchant with no book has no collection rate to report. 100 here read
+    // as a perfect record before a single instalment had ever been charged.
+    collectionRate: null,
     plans: [],
   };
 }

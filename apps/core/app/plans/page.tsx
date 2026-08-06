@@ -380,8 +380,10 @@ function EmptyState() {
         Split a purchase into instalments at any store that accepts Polaris, and it appears here
         with every collection listed.
       </p>
+      {/* "Where can I use this" is answered by the shop registry, not by the
+          integration docs this used to point at. */}
       <Link
-        href="/docs"
+        href="/merchants"
         className="mt-6 inline-block font-mono text-[11px] uppercase tracking-[0.12em] text-white/60 underline-offset-4 hover:text-white hover:underline"
       >
         Where can I use this

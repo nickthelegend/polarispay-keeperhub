@@ -18,7 +18,10 @@ export const viewport = {
 export const metadata: Metadata = {
   title: "PolarisPay | Buy now, pay later on-chain",
   description: "Split any checkout into four. Your limit is underwritten from your own chain history, and instalments collect themselves.",
-  keywords: "Sepolia, Fhenix, FHE, Confidential Lending, Privacy, DeFi",
+  // Fhenix/FHE/Confidential Lending described a different project; nothing here
+  // is encrypted or confidential, and claiming it in metadata is a false claim
+  // to anyone who finds the page by searching for it.
+  keywords: "Sepolia, BNPL, buy now pay later, on-chain credit, Ethereum, DeFi",
   authors: [{ name: "Polaris Team" }],
   creator: "Polaris",
   publisher: "Polaris",

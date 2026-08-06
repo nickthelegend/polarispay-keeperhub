@@ -28,11 +28,15 @@ export async function POST(req: NextRequest) {
         );
 
         return NextResponse.json({ user });
-    } catch (error: any) {
-        console.error(' [AUTH_SYNC_FATAL]:', error);
-        return NextResponse.json({
-            error: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        }, { status: 500 });
+    } catch (error) {
+        // This used to return error.message and, in development, error.stack.
+        // The driver's message carries the cluster hostname and the stack names
+        // our file layout, and neither tells the caller anything they can act
+        // on. The detail stays in the server log, where it is useful.
+        console.error('[POST /api/auth/sync] upsert failed', error);
+        return NextResponse.json(
+            { error: 'Could not sign you in right now. This is on our side -- try again in a moment.' },
+            { status: 500 }
+        );
     }
 }

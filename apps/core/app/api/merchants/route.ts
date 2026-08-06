@@ -35,9 +35,15 @@ export async function GET(): Promise<NextResponse> {
 
     return NextResponse.json(rows);
   } catch (err) {
-    // Returning [] made a database failure indistinguishable from "no rows".
+    // Returning [] made a database failure indistinguishable from "no rows", so
+    // the status still has to be a 500. The message does not: the driver's text
+    // names the cluster host, and this is an unauthenticated public endpoint.
+    console.error("[GET /api/merchants] read failed", err);
     return NextResponse.json(
-      { error: (err as Error).message ?? "Query failed" },
+      {
+        error:
+          "Could not load the merchant directory right now. This is on our side -- try again in a moment.",
+      },
       { status: 500 }
     );
   }

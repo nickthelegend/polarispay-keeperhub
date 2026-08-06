@@ -91,7 +91,11 @@ try {
     apiKeyHash: createHash("sha256").update(`pk_demo_${randomUUID()}`).digest("hex"),
     status: "active",
     maxOrderValue: usdc(5000).toString(),
-    totalSettled: usdc(1840).toString(),
+    // Zero, not 1840. The merchant dashboard renders this straight through as
+    // "Settled to you", so a seeded figure presented an invented payout as
+    // money that had actually reached the merchant. Settlement totals should
+    // only ever be what the protocol really transferred.
+    totalSettled: "0",
     chainId: CHAIN_ID,
     createdAt: new Date(Date.now() - 60 * DAY),
     updatedAt: new Date(),

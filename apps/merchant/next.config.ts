@@ -17,19 +17,19 @@ const nextConfig = {
     // Type errors now fail the build (the app typechecks clean).
     ignoreBuildErrors: false,
   },
-  async headers() {
-    return [
-      {
-        source: "/api/:path*",
-        headers: [
-          { key: "Access-Control-Allow-Credentials", value: "true" },
-          { key: "Access-Control-Allow-Origin", value: "*" }, // In production, restrict this to specific origins
-          { key: "Access-Control-Allow-Methods", value: "GET,DELETE,PATCH,POST,PUT,OPTIONS" },
-          { key: "Access-Control-Allow-Headers", value: "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, x-wallet-address" },
-        ],
-      },
-    ];
-  },
+  // There is deliberately no CORS block here.
+  //
+  // /api/:path* used to send Access-Control-Allow-Origin: * together with
+  // Access-Control-Allow-Credentials: true, and x-wallet-address was on the
+  // allowed-header list. /api/merchant/overview authenticates on nothing but
+  // that header, so any page on the internet could send one and read a
+  // merchant's entire ledger -- every plan, every balance, every payout -- with
+  // the browser reading the response back out to the attacker.
+  //
+  // Everything that calls this API is served from this same origin, so no CORS
+  // headers are needed at all and the same-origin policy does the work. If a
+  // cross-origin consumer is ever added, give it an explicit origin allowlist
+  // and real authentication, never a wildcard.
 };
 
 export default nextConfig;

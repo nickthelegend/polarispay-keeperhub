@@ -76,7 +76,11 @@ type Stats = {
   liquidatedLoans: number
   uniqueBorrowers: number
   activeMerchants: number
-  collectionRate: number
+  // Null when nothing has come due yet. The endpoint has always been able to
+  // send that, but this type said `number`, so the render site called
+  // .toFixed() on it unguarded and the whole page died inside the
+  // ErrorBoundary the moment the book was empty or fully repaid.
+  collectionRate: number | null
 }
 
 type KeeperActivity = {
@@ -414,8 +418,12 @@ function Plan({ plan }: { plan: Credit["plans"][number] }) {
         </div>
         <div className="text-right">
           <p className="figure text-xl font-semibold">{plan.outstandingDisplay}</p>
+          {/* The amount and the instalment count are different units, and the
+              old caption welded them into "left of 4 - 2 paid" directly under
+              the figure, which read as though 240.01 were a count of
+              instalments. Each number now carries its own noun. */}
           <p className="mt-0.5 text-xs text-foreground/45">
-            left of {total} · {paid} paid
+            outstanding · {paid} of {total} paid
           </p>
         </div>
       </div>
@@ -551,7 +559,11 @@ function Mechanics() {
     {
       n: "03",
       head: "Merchants are paid",
-      body: "Settlement leaves escrow on its own schedule. Repay on time and your limit grows; fall behind and only your collateral is at risk.",
+      // There is no escrow and no payout schedule. createLoan transfers the
+      // full principal to the merchant out of protocol liquidity in the same
+      // transaction that opens the plan, which is why the protocol -- not the
+      // shop -- is the party exposed if the borrower stops paying.
+      body: "The shop is paid the full price the moment the plan opens, out of protocol liquidity, so the protocol carries the repayment risk. Repay on time and your limit grows; fall behind and only your collateral is at risk.",
       href: "/limits",
       cta: "How limits are set",
     },
@@ -709,10 +721,13 @@ function Protocol({ stats }: { stats?: Stats }) {
         <Figure term="Originated" value={stats.totalOriginated} />
         <Figure term="Repaid" value={stats.totalRepaid} />
         <Figure term="Outstanding" value={stats.outstanding} />
+        {/* A book with nothing due yet has no collection rate. Showing a dash
+            says that honestly; the alternative of inventing 100% claims a
+            perfect record the protocol has not earned. */}
         <Figure
           term="Collected on time"
-          value={`${stats.collectionRate.toFixed(0)}%`}
-          accent={stats.collectionRate >= 95}
+          value={stats.collectionRate === null ? "-" : `${stats.collectionRate.toFixed(0)}%`}
+          accent={stats.collectionRate !== null && stats.collectionRate >= 95}
         />
         <Figure term="Liquidated" value={String(stats.liquidatedLoans)} />
       </dl>

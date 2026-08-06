@@ -178,6 +178,14 @@ export async function POST(request: Request): Promise<NextResponse> {
         { status: 403 }
       );
     }
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Anything past the mapped reverts is an ethers or RPC internal -- "missing
+    // revert data", a coalesced provider failure, a driver message naming our
+    // infrastructure. Returning it handed the shopper a string they cannot act
+    // on and told an attacker about our stack, so it goes to the log instead.
+    console.error("[POST /api/checkout] origination failed", err);
+    return NextResponse.json(
+      { error: "Could not open the payment plan right now. Try again in a moment." },
+      { status: 500 }
+    );
   }
 }

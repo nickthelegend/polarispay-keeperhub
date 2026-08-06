@@ -69,10 +69,15 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
           </div>
           
+          {/* This said "Error_Log_Transmitted", which told the user a report was
+              already on its way to us and that they need do nothing. logger.error
+              is console.error, so the trace never leaves the tab -- the report we
+              promised was never sent. Until something actually ships it, the
+              honest version tells them where it is and that reporting is on them. */}
           <div className="mt-8 flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
             <span className="text-[10px] text-foreground/20 font-black uppercase tracking-[0.3em]">
-              Polaris Terminal · Error_Log_Transmitted
+              Polaris Terminal · Details_In_Browser_Console
             </span>
           </div>
         </div>

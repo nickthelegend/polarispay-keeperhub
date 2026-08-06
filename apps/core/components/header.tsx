@@ -28,7 +28,9 @@ export function AppHeader() {
         <div className="flex items-center gap-2">
           <Link href="/" className="font-semibold tracking-wide">
             <span className="inline-flex items-center gap-2">
-              <Image src="/logo.png" alt="Logo" width={120} height={32} className="h-8 w-auto max-h-8" />
+              {/* The image is the link's only content, so its alt is the link's
+                  accessible name. "Logo" describes the asset, not the destination. */}
+              <Image src="/logo.png" alt="PolarisPay home" width={120} height={32} className="h-8 w-auto max-h-8" />
             </span>
           </Link>
         </div>

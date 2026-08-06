@@ -13,9 +13,15 @@ export function AppFooter() {
     return (
         <footer className="w-full flex flex-col md:flex-row justify-between items-center py-6 px-6 md:px-12 border-t border-white/5 gap-6 opacity-40 font-mono">
             <div className="flex items-center gap-8">
+                {/* This was a pulsing green dot next to a hardcoded
+                    "POLARIS_PROTOCOL: ACTIVE". It read as a liveness light but
+                    checked nothing, so it said ACTIVE just as confidently while
+                    the keeper was down -- the one moment the indicator existed
+                    to warn about. This app has no health endpoint to wire it to
+                    (/api/keeper/health lives in the merchant app), so the claim
+                    is gone rather than faked. The name is a fact and stays. */}
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em]">
-                    <span className="w-1 h-1 bg-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(166,242,74,0.8)]"></span>
-                    POLARIS_PROTOCOL: ACTIVE
+                    POLARIS_PROTOCOL
                 </div>
                 <div className="text-[10px] flex items-center gap-1 font-bold uppercase tracking-[0.2em]">
                     <Shield className="w-3 h-3" />

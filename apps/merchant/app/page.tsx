@@ -46,8 +46,11 @@ const STEPS = [
         body: 'A single signature covers the whole schedule. Nothing is locked up front, and the shopper never pays gas to start a plan.',
     },
     {
-        title: 'The keeper collects, and you are settled',
-        body: 'Each instalment is charged on its due date. A charge that fails enters a retry ladder rather than being written off, and what is collected is paid out to you on schedule.',
+        // Nothing here waits on a payout cycle: createLoan pays the merchant the
+        // full principal out of protocol liquidity as the plan opens, so the
+        // collections that follow are the protocol recovering its own money.
+        title: 'You are paid up front, then the keeper collects',
+        body: 'The full price reaches your payout address as the plan opens, out of protocol liquidity. Each instalment is then charged on its due date, and a charge that fails enters a retry ladder rather than being written off. That risk is the protocol’s, not yours.',
     },
 ];
 
@@ -144,7 +147,11 @@ export default function Home() {
                         />
                         <Proof term="Plans collecting" value={String(health.book.activeLoans)} />
                         <Proof term="In dunning" value={String(health.book.inDunning)} />
-                        <Proof term="Written off" value={String(health.book.liquidationCandidates)} />
+                        {/* liquidationCandidates counts active loans that have
+                            become eligible for liquidation. They are still being
+                            chased and can still be repaid, so "Written off" -- a
+                            closed, unrecoverable loan -- named the wrong thing. */}
+                        <Proof term="At risk" value={String(health.book.liquidationCandidates)} />
                     </dl>
                     <p className="mt-6 max-w-[58ch] text-sm leading-relaxed text-foreground/45">
                         Read from the live book. Every instalment behind these was charged by a

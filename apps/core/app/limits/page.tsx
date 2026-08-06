@@ -176,6 +176,9 @@ function Limits() {
             onChange={(e) => setAmount(e.target.value)}
             inputMode="decimal"
             placeholder="0.00"
+            // A placeholder is not a label: it vanishes on focus, and without
+            // this the field is announced as unnamed.
+            aria-label="Collateral amount to lock or withdraw"
             className="flex-1 rounded-xl border border-primary/20 bg-black/40 px-4 py-3 text-sm tabular-nums outline-none focus:border-primary/50 transition-colors"
           />
           <button

@@ -74,7 +74,8 @@ export default function MerchantsPage() {
           <h1 className="page-title">Merchants</h1>
           <p className="page-lede text-sm">
             Shops accepting Polaris. Any merchant can register and start splitting checkouts into
-            four. Settlement lands in their payout address on schedule.
+            four. Their payout address receives the full price when the plan opens, out of
+            protocol liquidity.
           </p>
         </div>
 

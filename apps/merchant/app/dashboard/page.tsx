@@ -29,7 +29,9 @@ type Overview = {
     collectedThisWeekDisplay: string;
     activePlans: number;
     dunningPlans: number;
-    collectionRate: number;
+    // Null until something has actually come due. The endpoint used to send a
+    // flat 100 in that case, which presented an untested book as a perfect one.
+    collectionRate: number | null;
     plans: Plan[];
 };
 
@@ -160,11 +162,15 @@ export function Ledger({
                 <dl className="mt-9 flex flex-wrap gap-x-10 gap-y-5 text-sm">
                     <InlineFigure label="Settled to you" value={data?.settledDisplay} loading={isLoading} />
                     <InlineFigure label="Collected this week" value={data?.collectedThisWeekDisplay} loading={isLoading} />
+                    {/* Left undefined when nothing has come due, so InlineFigure
+                        shows its dash rather than a rate nothing has measured. */}
                     <InlineFigure
                         label="Collection rate"
-                        value={data ? `${data.collectionRate.toFixed(1)}%` : undefined}
+                        value={
+                            data?.collectionRate == null ? undefined : `${data.collectionRate.toFixed(1)}%`
+                        }
                         loading={isLoading}
-                        accent={data ? data.collectionRate >= 95 : false}
+                        accent={data?.collectionRate != null && data.collectionRate >= 95}
                     />
                 </dl>
             </header>
@@ -325,7 +331,7 @@ function PlanRow({ plan }: { plan: Plan }) {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
-                            aria-label={`View last transaction for order ${plan.orderId} on Basescan`}
+                            aria-label={`View last transaction for order ${plan.orderId} on Etherscan`}
                         >
                             <ArrowUpRight className="h-3.5 w-3.5 text-white/40 hover:text-primary" />
                         </a>
@@ -480,8 +486,13 @@ function RowSkeleton() {
  * before they have even connected.
  */
 function SignIn({ onSignIn }: { onSignIn: () => void }) {
+    // There is no settlement cycle and no escrow to wait on: createLoan sends
+    // the merchant the full principal out of protocol liquidity in the same
+    // transaction that opens the plan. The old line described a payout timing
+    // model this protocol does not have, and buried the part that actually
+    // matters to a merchant -- that the repayment risk is not theirs.
     const facts = [
-        'Settlement lands the moment a customer checks out, not on a payout cycle.',
+        'You are paid the full amount when the plan opens, out of protocol liquidity. The protocol carries the repayment risk, not you.',
         'Every instalment is simulated before it is sent, so a charge that would fail becomes a dunning event instead of a burnt transaction.',
         'Gas is sponsored. Your customers never hold the native token.',
     ];

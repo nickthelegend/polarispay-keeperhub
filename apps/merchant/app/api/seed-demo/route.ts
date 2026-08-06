@@ -55,8 +55,13 @@ export async function GET() {
             client_secret
         });
 
-    } catch (e: any) {
-        console.error('Seed Demo Error:', e);
-        return NextResponse.json({ error: e.message }, { status: 500 });
+    } catch (e) {
+        // The driver's message names the cluster host and the failing
+        // collection. That belongs in the log, not in a response body.
+        console.error('[POST /api/seed-demo] seed failed', e);
+        return NextResponse.json(
+            { error: 'Could not seed the demo merchant. This is on our side -- try again in a moment.' },
+            { status: 500 }
+        );
     }
 }
