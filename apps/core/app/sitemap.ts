@@ -1,38 +1,34 @@
-import { MetadataRoute } from 'next'
+import type { MetadataRoute } from "next"
+
+/**
+ * The sitemap is a list of routes that exist.
+ *
+ * This one advertised /checkout, /transactions and /settings -- none of which
+ * are routes in this app, all three 404 -- while omitting /merchants, /faucet,
+ * /docs and /plans, which are. It also pointed at pay-ease-ruby.vercel.app, a
+ * different project's deployment. A sitemap that names pages the crawler cannot
+ * fetch is worse than none: it spends the crawl budget proving the site is
+ * broken.
+ *
+ * Derived from one list so a new route cannot be added without appearing here.
+ */
+const ROUTES = [
+  { path: "", changeFrequency: "daily", priority: 1 },
+  { path: "/plans", changeFrequency: "daily", priority: 0.9 },
+  { path: "/limits", changeFrequency: "weekly", priority: 0.8 },
+  { path: "/merchants", changeFrequency: "weekly", priority: 0.8 },
+  { path: "/docs", changeFrequency: "weekly", priority: 0.7 },
+  { path: "/faucet", changeFrequency: "monthly", priority: 0.5 },
+] as const
+
+export const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://polarispay.xyz"
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://pay-ease-ruby.vercel.app'
-  
-  return [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/limits`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/checkout`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/transactions`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/settings`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.5,
-    },
-  ]
+  const lastModified = new Date()
+  return ROUTES.map(({ path, changeFrequency, priority }) => ({
+    url: `${BASE_URL}${path}`,
+    lastModified,
+    changeFrequency,
+    priority,
+  }))
 }

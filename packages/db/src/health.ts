@@ -229,7 +229,17 @@ export function renderHealth(report: HealthReport): string {
     `  overdue instalments    ${report.book.overdueInstalments} (${report.book.overdueValue})`,
     `  in dunning             ${report.book.inDunning}`,
     `  liquidation candidates ${report.book.liquidationCandidates}`,
-    `  unsettled to merchants ${report.book.unsettledValue}`,
+    /*
+     * `unsettledValue` is still computed and still on the report object, because
+     * it is a real quantity: instalments collected and not yet paid out. It is
+     * no longer printed as an operational figure, because under the deployed
+     * contracts nobody is owed it. PolarisLoanEngine.createLoan pays the
+     * merchant the full principal at origination out of protocol liquidity, so
+     * a collected instalment is a repayment to the protocol, not a merchant
+     * balance. Printing it beside "overdue" and "in dunning" invited the reader
+     * to treat it as a debt the keeper was failing to clear.
+     */
+    `  collected, not paid out ${report.book.unsettledValue} (repayments, not merchant debt)`,
     `  collection rate        ${report.book.collectionRate.toFixed(1)}%`
   );
   if (report.incidents.length > 0) {

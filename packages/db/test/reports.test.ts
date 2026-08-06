@@ -158,7 +158,7 @@ describe("renderHealth", () => {
 
   it("reports the book totals it was given, unrounded except for the rate", () => {
     const out = renderHealth(health());
-    assert.match(out, /unsettled to merchants\s+120\.00/);
+    assert.match(out, /collected, not paid out\s+120\.00/);
     assert.match(out, /overdue instalments\s+1 \(45\.00\)/);
     assert.match(out, /collection rate\s+87\.5%/);
   });
