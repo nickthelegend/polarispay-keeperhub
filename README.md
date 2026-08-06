@@ -14,7 +14,7 @@ The keeper collects real instalments through KeeperHub's direct-execution API �
 |---|---|
 | Collection through KeeperHub | [`0x38e2126e…`](https://sepolia.etherscan.io/tx/0x38e2126efdff6ef5d0ab561abfd39592fd3081fcd365800c389ef1473000615b) — the instalment that closed loan #1 |
 | Merchant settlement through KeeperHub | [`0x8218f391…`](https://sepolia.etherscan.io/tx/0x8218f39198a92985e781b8b881211779a45295f8de454954aae9eec318486d0f) |
-| LoanEngine | [`0x5d6F049f…`](https://sepolia.etherscan.io/address/0x5d6F049f791C40b09701129b3663d1A8ce9eAB86) |
+| LoanEngine | [`0x21E9740D…`](https://sepolia.etherscan.io/address/0x21E9740DDe241f0653F699DAa206AfCE1FA25405) |
 | CollateralVault | [`0xDb6781ed…`](https://sepolia.etherscan.io/address/0xDb6781ed843Ba07Af3321bB8C3952db643324b98) |
 | PolarisPayments | [`0x3BD1609a…`](https://sepolia.etherscan.io/address/0x3BD1609abDC915eA9e01A399a26e2B8A2a06243f) |
 

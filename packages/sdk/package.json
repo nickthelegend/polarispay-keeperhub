@@ -1,6 +1,6 @@
 {
   "name": "polarispay-sdk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "One object, three payment modes: pay now, subscribe, or split into instalments. On-chain BNPL for any EVM checkout.",
   "license": "MIT",
   "author": "Polaris Team",

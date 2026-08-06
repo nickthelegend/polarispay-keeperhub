@@ -34,7 +34,7 @@ export function AppFooter() {
             </div>
             <div className="flex gap-6">
                 <Link href="/docs" className="hover:text-primary transition-colors text-[10px] font-bold uppercase tracking-widest">Docs</Link>
-                <a href="https://sepolia.etherscan.io/address/0x5d6F049f791C40b09701129b3663d1A8ce9eAB86" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors text-[10px] font-bold uppercase tracking-widest">Contracts</a>
+                <a href="https://sepolia.etherscan.io/address/0x21E9740DDe241f0653F699DAa206AfCE1FA25405" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors text-[10px] font-bold uppercase tracking-widest">Contracts</a>
             </div>
         </footer>
     )

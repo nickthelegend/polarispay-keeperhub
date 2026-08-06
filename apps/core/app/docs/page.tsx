@@ -13,8 +13,8 @@ import { Check, Copy, ExternalLink } from "lucide-react"
  */
 
 const CONTRACTS: Array<[string, string]> = [
-  ["PolarisLoanEngine", "0x5d6F049f791C40b09701129b3663d1A8ce9eAB86"],
-  ["ScoreManager", "0x13C5af8f4c6E7f3b26998451Cf4FD65a6Ca268e2"],
+  ["PolarisLoanEngine", "0x21E9740DDe241f0653F699DAa206AfCE1FA25405"],
+  ["ScoreManager", "0x81C333942eaEe7d3d724c6C2ea28100511934f3C"],
   ["CollateralVault", "0xDb6781ed843Ba07Af3321bB8C3952db643324b98"],
   ["PolarisPayments", "0x3BD1609abDC915eA9e01A399a26e2B8A2a06243f"],
   ["MerchantRegistry", "0xb2eCAD5bE07971deE1be161C39569705186AdFD6"],

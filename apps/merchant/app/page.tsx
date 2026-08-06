@@ -217,7 +217,7 @@ export default function Home() {
                         Polaris · Sepolia
                     </p>
                     <a
-                        href="https://sepolia.etherscan.io/address/0x5d6F049f791C40b09701129b3663d1A8ce9eAB86"
+                        href="https://sepolia.etherscan.io/address/0x21E9740DDe241f0653F699DAa206AfCE1FA25405"
                         target="_blank"
                         rel="noreferrer"
                         className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/65 transition-colors hover:text-foreground/90"

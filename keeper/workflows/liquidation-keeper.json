@@ -25,7 +25,7 @@
         "config": {
           "actionType": "web3/read-contract",
           "network": "11155111",
-          "contractAddress": "0x5d6F049f791C40b09701129b3663d1A8ce9eAB86",
+          "contractAddress": "0x21E9740DDe241f0653F699DAa206AfCE1FA25405",
           "abi": "[{\"type\":\"function\",\"name\":\"checkLiquidatable\",\"stateMutability\":\"view\",\"inputs\":[{\"name\":\"loanId\",\"type\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}]}]",
           "abiFunction": "checkLiquidatable",
           "functionArgs": "[\"6\"]"
@@ -42,7 +42,7 @@
         "config": {
           "actionType": "web3/write-contract",
           "network": "11155111",
-          "contractAddress": "0x5d6F049f791C40b09701129b3663d1A8ce9eAB86",
+          "contractAddress": "0x21E9740DDe241f0653F699DAa206AfCE1FA25405",
           "abi": "[{\"type\":\"function\",\"name\":\"liquidate\",\"stateMutability\":\"nonpayable\",\"inputs\":[{\"name\":\"loanId\",\"type\":\"uint256\"}],\"outputs\":[]}]",
           "abiFunction": "liquidate",
           "functionArgs": "[\"6\"]",
