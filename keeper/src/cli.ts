@@ -198,12 +198,55 @@ async function transferOccurred(hash: string | undefined, rpcUrl: string): Promi
   }
 }
 
+/**
+ * Settlement is OFF by default, and that is a correctness decision.
+ *
+ * Every payment path in this protocol already pays the merchant directly, at
+ * the moment of the transaction:
+ *
+ *   BNPL          PolarisLoanEngine.createLoan does
+ *                 `stablecoin.safeTransfer(merchant, principal)` -- the merchant
+ *                 is made whole up front out of protocol liquidity, and the
+ *                 protocol carries the repayment risk. This is the standard BNPL
+ *                 model, and it is what the deployed contract does.
+ *   Pay now       PolarisPayments.pay does
+ *                 `safeTransferFrom(msg.sender, merchant, net)` -- buyer straight
+ *                 to merchant, nothing held.
+ *   Subscriptions the same transfer, on a schedule.
+ *
+ * Nothing anywhere holds funds owed to a merchant. So a settle job that pays
+ * merchants out of collected instalments is not settling a debt -- it is paying
+ * them a second time for an order they were already paid for. That went
+ * unnoticed because the demo merchant, borrower and deployer are all the same
+ * address, so the money circulated inside one account.
+ *
+ * The rail itself is real and works (BatchSettlement, verified moving 1860.08
+ * USDC on chain), so it is kept behind a flag rather than deleted: the moment a
+ * flow exists that genuinely escrows merchant funds, this becomes correct. Until
+ * then, running it moves money that is not owed.
+ */
+const SETTLEMENT_ENABLED = process.env.POLARIS_SETTLEMENT_ENABLED === "true";
+
 async function settle(): Promise<JobResult> {
   const { keeper, config, backend } = build();
 
-  // This used to be hardcoded to `[]`, which meant settleMerchant had never
-  // executed and merchants were never actually paid out. The queue is derived
-  // from instalments already collected and not yet settled.
+  if (!SETTLEMENT_ENABLED) {
+    console.log(
+      "settlement is off: merchants are already paid at origination by createLoan,\n" +
+        "so there is no outstanding balance to settle. Set POLARIS_SETTLEMENT_ENABLED=true\n" +
+        "only once a flow exists that actually escrows funds owed to a merchant."
+    );
+    return {
+      job: "settlement",
+      considered: 0,
+      acted: 0,
+      succeeded: 0,
+      failed: 0,
+      skipped: 0,
+      receipts: [],
+    };
+  }
+
   const pending =
     backend === "mongodb" ? await pendingSettlements({ chainId: config.chainId }) : [];
 
