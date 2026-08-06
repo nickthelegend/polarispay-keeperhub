@@ -40,7 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
             
             <div className="space-y-2">
               <h1 className="text-2xl font-black text-white uppercase tracking-tighter">System_Failure</h1>
-              <p className="text-sm text-foreground/40 leading-relaxed uppercase tracking-widest font-bold">
+              <p className="text-sm text-foreground/60 leading-relaxed uppercase tracking-widest font-bold">
                 An unexpected error occurred in the Polaris interface.
               </p>
             </div>
@@ -76,7 +76,7 @@ export class ErrorBoundary extends Component<Props, State> {
               honest version tells them where it is and that reporting is on them. */}
           <div className="mt-8 flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-[10px] text-foreground/20 font-black uppercase tracking-[0.3em]">
+            <span className="text-[10px] text-foreground/70 font-black uppercase tracking-[0.3em]">
               Polaris Terminal · Details_In_Browser_Console
             </span>
           </div>

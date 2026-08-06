@@ -135,7 +135,7 @@ function Limits() {
     <div className="space-y-8 pt-6">
       <header className="space-y-2">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Your limit</h1>
-        <p className="text-sm text-foreground/50 max-w-2xl">
+        <p className="text-sm text-foreground/55 max-w-2xl">
           Every wallet gets a limit underwritten from its own history. Lock collateral and you get
           150% of it as extra credit on top.
         </p>
@@ -162,7 +162,7 @@ function Limits() {
           <Lock className="size-4 text-primary mt-0.5 shrink-0" />
           <div className="space-y-1">
             <h2 className="font-semibold">Collateral</h2>
-            <p className="text-sm text-foreground/50">
+            <p className="text-sm text-foreground/55">
               {locked > 0
                 ? `${data?.collateralLocked} locked, worth ${data?.collateralBoost} of extra credit.`
                 : "Nothing locked yet."}
@@ -250,7 +250,7 @@ function Breakdown({ data }: { data: Limits }) {
         <div className="bg-primary/70" style={{ width: `${base}%` }} title="Earned on history" />
         <div className="bg-primary/30" style={{ width: `${boost}%` }} title="From collateral" />
       </div>
-      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-foreground/50">
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-foreground/55">
         <Legend swatch="bg-primary/70" label={`${data.baseLimit} earned`} />
         <Legend swatch="bg-primary/30" label={`${data.collateralBoost} from collateral`} />
         <span className="inline-flex items-center gap-1.5">
@@ -278,7 +278,7 @@ function Figure({ label, value, accent }: { label: string; value?: string; accen
         accent ? "border-primary/40 bg-primary/5" : "border-primary/15 bg-[#05080f]/40"
       }`}
     >
-      <p className="text-[11px] uppercase tracking-widest text-foreground/40">{label}</p>
+      <p className="text-[11px] uppercase tracking-widest text-foreground/60">{label}</p>
       {value === undefined ? (
         <div className="h-7 w-24 rounded bg-primary/10 animate-pulse" />
       ) : (

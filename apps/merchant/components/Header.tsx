@@ -24,7 +24,7 @@ export default function Header() {
                         />
                     </Link>
 
-                    <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white/50">
+                    <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white/55">
                         <Link href="/dashboard" className="hover:text-primary transition-colors flex items-center gap-2">
                             <LayoutDashboard className="w-4 h-4" />
                             Console
@@ -52,7 +52,7 @@ export default function Header() {
 
                     {address ? (
                         <div className="flex items-center gap-3">
-                            <span className="hidden lg:block text-[11px] text-white/40 font-mono uppercase tracking-widest">
+                            <span className="hidden lg:block text-[11px] text-white/60 font-mono uppercase tracking-widest">
                                 {address.slice(0, 6)}…{address.slice(-4)}
                             </span>
                             <button

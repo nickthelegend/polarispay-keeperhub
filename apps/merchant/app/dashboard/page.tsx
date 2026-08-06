@@ -129,7 +129,7 @@ export function Ledger({
                             <span className="figure-lg font-mono text-[clamp(2.75rem,7vw,4.5rem)] font-medium">
                                 {isLoading ? <Skeleton w="9ch" /> : data?.outstandingDisplay ?? '0.00'}
                             </span>
-                            <span className="font-mono text-lg text-white/40">USDC</span>
+                            <span className="font-mono text-lg text-white/60">USDC</span>
                         </div>
                     </div>
 
@@ -147,7 +147,7 @@ export function Ledger({
                                 <span className="size-1.5 rounded-full bg-primary" aria-hidden />
                             )}
                         </div>
-                        <p className="mt-2 max-w-[30ch] text-[13px] leading-relaxed text-white/45">
+                        <p className="mt-2 max-w-[30ch] text-[13px] leading-relaxed text-white/60">
                             {isLoading
                                 ? ''
                                 : atRisk > 0
@@ -188,7 +188,7 @@ export function Ledger({
                             className={`rounded-full px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                                 filter === f
                                     ? 'bg-primary text-black'
-                                    : 'text-white/50 hover:bg-white/5 hover:text-white/80'
+                                    : 'text-white/55 hover:bg-white/5 hover:text-white/80'
                             }`}
                         >
                             {f}
@@ -200,7 +200,7 @@ export function Ledger({
             <div className="mt-5 overflow-x-auto">
                 <table className="w-full min-w-[720px] border-collapse text-sm">
                     <thead>
-                        <tr className="border-b border-white/10 text-left font-mono text-[10px] uppercase tracking-[0.16em] text-white/40">
+                        <tr className="border-b border-white/10 text-left font-mono text-[10px] uppercase tracking-[0.16em] text-white/60">
                             <th className="pb-3 pr-4 font-normal">Order</th>
                             <th className="pb-3 pr-4 font-normal">Borrower</th>
                             <th className="pb-3 pr-4 text-right font-normal">Plan</th>
@@ -251,7 +251,7 @@ function KeeperStrip() {
         healthy: 'text-primary',
         degraded: 'text-amber-300',
         down: 'text-rose-300',
-        unknown: 'text-white/35',
+        unknown: 'text-white/65',
     }[data.status];
 
     const label = {
@@ -275,7 +275,7 @@ function KeeperStrip() {
                 <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
                 {label}
             </span>
-            {ago && <span className="font-mono text-[11px] text-white/35">last pass {ago}</span>}
+            {ago && <span className="font-mono text-[11px] text-white/65">last pass {ago}</span>}
             {data.incidents.length > 0 && (
                 <span className="font-mono text-[11px] text-amber-300/80">{data.incidents[0]}</span>
             )}
@@ -320,7 +320,7 @@ function PlanRow({ plan }: { plan: Plan }) {
                 {plan.outstandingDisplay}
             </td>
             <td className="py-4 pr-4 font-mono text-[13px] text-white/55">
-                {plan.nextDueAt ? formatDue(plan.nextDueAt) : <span className="text-white/25">&mdash;</span>}
+                {plan.nextDueAt ? formatDue(plan.nextDueAt) : <span className="text-white/70">&mdash;</span>}
             </td>
             <td className="py-4">
                 <div className="flex items-center justify-between gap-3">
@@ -359,7 +359,7 @@ function Badge({ tone, children }: { tone: 'live' | 'warn' | 'danger' | 'muted';
         live: 'text-primary before:bg-primary',
         warn: 'text-amber-300 before:bg-amber-300',
         danger: 'text-rose-300 before:bg-rose-300',
-        muted: 'text-white/40 before:bg-white/30',
+        muted: 'text-white/60 before:bg-white/30',
     } as const;
 
     return (
@@ -384,7 +384,7 @@ function Figure({
 }) {
     return (
         <div>
-            <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/40">{label}</dt>
+            <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60">{label}</dt>
             <dd
                 className={`mt-2 font-mono text-xl tabular-nums tracking-tight ${
                     tone === 'warn' ? 'text-amber-300' : 'text-white/90'
@@ -409,7 +409,7 @@ function InlineFigure({
 }) {
     return (
         <div className="flex items-baseline gap-2.5">
-            <dt className="text-white/40">{label}</dt>
+            <dt className="text-white/60">{label}</dt>
             <dd className={`figure font-mono font-medium ${accent ? 'text-primary' : 'text-white/85'}`}>
                 {loading ? <Skeleton w="5ch" /> : (value ?? '-')}
             </dd>
@@ -432,7 +432,7 @@ function EmptyState({ filter }: { filter: string }) {
     return (
         <div className="py-20 text-center">
             <p className="text-base font-medium text-white/85">{head}</p>
-            <p className="mx-auto mt-2 max-w-[46ch] text-sm leading-relaxed text-white/45">{body}</p>
+            <p className="mx-auto mt-2 max-w-[46ch] text-sm leading-relaxed text-white/60">{body}</p>
         </div>
     );
 }
@@ -517,7 +517,7 @@ function SignIn({ onSignIn }: { onSignIn: () => void }) {
 
                     <ul className="mt-10 grid gap-3.5">
                         {facts.map((fact) => (
-                            <li key={fact} className="flex gap-3 text-sm leading-relaxed text-white/50">
+                            <li key={fact} className="flex gap-3 text-sm leading-relaxed text-white/55">
                                 <span aria-hidden className="mt-[0.45rem] size-1 shrink-0 rounded-full bg-primary/70" />
                                 {fact}
                             </li>
@@ -548,7 +548,7 @@ function SignIn({ onSignIn }: { onSignIn: () => void }) {
                         ))}
                     </div>
 
-                    <p className="border-t border-white/[0.06] px-5 py-4 text-xs leading-relaxed text-white/40">
+                    <p className="border-t border-white/[0.06] px-5 py-4 text-xs leading-relaxed text-white/60">
                         Connect and this fills with your own originations and settlement history.
                     </p>
                 </div>

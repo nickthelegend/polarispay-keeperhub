@@ -80,13 +80,13 @@ export default function MerchantsPage() {
         </div>
 
         <div className="relative w-full max-w-xs">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-foreground/30" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-foreground/60" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search merchants"
             aria-label="Search merchants"
-            className="w-full rounded-[--radius] border border-foreground/10 bg-foreground/[0.03] py-2.5 pl-10 pr-3 text-sm outline-none transition-colors placeholder:text-foreground/30 focus:border-primary/45"
+            className="w-full rounded-[--radius] border border-foreground/10 bg-foreground/[0.03] py-2.5 pl-10 pr-3 text-sm outline-none transition-colors placeholder:text-foreground/65 focus:border-primary/45"
           />
         </div>
       </header>
@@ -171,7 +171,7 @@ export default function MerchantsPage() {
 
               <div>
                 <h2 className="text-lg font-semibold leading-tight tracking-tight">{m.name}</h2>
-                <p className="figure mt-1 text-xs text-foreground/40">{m.merchantId}</p>
+                <p className="figure mt-1 text-xs text-foreground/60">{m.merchantId}</p>
               </div>
 
               <div className="mt-auto">
@@ -208,7 +208,7 @@ export default function MerchantsPage() {
               <Store className="size-5" />
             </span>
             <p className="text-sm font-medium">List your store</p>
-            <p className="max-w-[26ch] text-xs leading-relaxed text-foreground/50">
+            <p className="max-w-[26ch] text-xs leading-relaxed text-foreground/55">
               One SDK call and a payout address. Checkouts split into four from the first order.
             </p>
             <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary">

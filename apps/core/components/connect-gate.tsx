@@ -71,7 +71,7 @@ export function ConnectGate({
   if (isConnecting) {
     return (
       <div className="flex min-h-[60dvh] items-center justify-center">
-        <p className="flex items-center gap-3 text-sm text-foreground/45">
+        <p className="flex items-center gap-3 text-sm text-foreground/60">
           <span className="size-4 animate-spin rounded-full border border-foreground/20 border-t-primary" />
           Waiting for your wallet
         </p>
@@ -106,7 +106,7 @@ export function ConnectGate({
                 text: "No account, no email, no application. Your limit is read from the chain, not from a form.",
               },
             ].map(({ icon: Icon, text }) => (
-              <li key={text} className="flex gap-3 text-sm leading-relaxed text-foreground/50">
+              <li key={text} className="flex gap-3 text-sm leading-relaxed text-foreground/55">
                 <Icon className="mt-0.5 size-4 shrink-0 text-primary/70" />
                 {text}
               </li>
@@ -132,7 +132,7 @@ export function ConnectGate({
           </div>
 
           <div className="border-t border-foreground/[0.08] px-5 py-4">
-            <p className="text-xs leading-relaxed text-foreground/40">
+            <p className="text-xs leading-relaxed text-foreground/60">
               Connect and this fills with {previewNote}.
             </p>
           </div>

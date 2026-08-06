@@ -104,7 +104,7 @@ function Faucet() {
     <div className="space-y-8 pt-6 max-w-xl">
       <header className="space-y-2">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Test tokens</h1>
-        <p className="text-sm text-foreground/50">
+        <p className="text-sm text-foreground/55">
           {symbol} on Sepolia, for trying the product. You will also need a little Sepolia ETH for
           gas, which the public faucets have.
         </p>
@@ -113,7 +113,7 @@ function Faucet() {
       <section className="rounded-2xl border border-primary/15 bg-[#05080f]/40 p-6 space-y-5">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-widest text-foreground/40">Your balance</p>
+            <p className="text-[11px] uppercase tracking-widest text-foreground/60">Your balance</p>
             {balance === undefined ? (
               <div className="mt-1.5 h-7 w-32 rounded bg-primary/10 animate-pulse" />
             ) : (
@@ -155,7 +155,7 @@ function Faucet() {
         )}
       </section>
 
-      <p className="text-xs text-foreground/35">
+      <p className="text-xs text-foreground/65">
         Token{" "}
         <a
           href={`https://sepolia.etherscan.io/address/${TOKEN}`}

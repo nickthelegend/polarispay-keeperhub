@@ -153,7 +153,7 @@ export default function Home() {
                             closed, unrecoverable loan -- named the wrong thing. */}
                         <Proof term="At risk" value={String(health.book.liquidationCandidates)} />
                     </dl>
-                    <p className="mt-6 max-w-[58ch] text-sm leading-relaxed text-foreground/45">
+                    <p className="mt-6 max-w-[58ch] text-sm leading-relaxed text-foreground/60">
                         Read from the live book. Every instalment behind these was charged by a
                         keeper running on KeeperHub, with gas sponsored, and each one has a
                         transaction you can open.
@@ -198,7 +198,7 @@ export default function Home() {
                             <span className="size-2 rounded-full bg-foreground/15" />
                             <span className="size-2 rounded-full bg-foreground/15" />
                             <span className="size-2 rounded-full bg-foreground/15" />
-                            <span className="ml-2 font-mono text-[11px] text-foreground/40">
+                            <span className="ml-2 font-mono text-[11px] text-foreground/60">
                                 checkout.tsx
                             </span>
                         </div>
@@ -213,14 +213,14 @@ export default function Home() {
 
             <footer className="border-t border-foreground/8">
                 <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4 px-6 py-8 md:px-10">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/30">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/65">
                         Polaris · Sepolia
                     </p>
                     <a
                         href="https://sepolia.etherscan.io/address/0x5d6F049f791C40b09701129b3663d1A8ce9eAB86"
                         target="_blank"
                         rel="noreferrer"
-                        className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/30 transition-colors hover:text-foreground/60"
+                        className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground/65 transition-colors hover:text-foreground/90"
                     >
                         Contracts
                     </a>

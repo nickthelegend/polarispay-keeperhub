@@ -115,12 +115,12 @@ export default function PlansPage() {
               <span className="figure-lg font-mono text-[clamp(2.75rem,7vw,4.5rem)] font-medium text-white">
                 {isLoading ? <Bar w="8ch" /> : (data?.availableDisplay ?? "0.00")}
               </span>
-              <span className="font-mono text-lg text-white/45">USDC</span>
+              <span className="font-mono text-lg text-white/60">USDC</span>
             </div>
           </div>
 
           <div>
-            <div className="flex items-baseline justify-between font-mono text-[11px] text-white/45">
+            <div className="flex items-baseline justify-between font-mono text-[11px] text-white/60">
               <span>{data ? `${data.usedDisplay} in use` : "-"}</span>
               <span>{data ? `${data.limitDisplay} limit` : "-"}</span>
             </div>
@@ -145,14 +145,14 @@ export default function PlansPage() {
             ) : data?.nextDueAt ? (
               <p className="figure mt-2.5 font-mono text-2xl text-white">
                 {data.nextDueDisplay}
-                <span className="ml-3 text-sm font-normal text-white/45">
+                <span className="ml-3 text-sm font-normal text-white/60">
                   {formatDue(data.nextDueAt)}
                 </span>
               </p>
             ) : (
-              <p className="mt-2.5 text-lg text-white/45">Nothing scheduled</p>
+              <p className="mt-2.5 text-lg text-white/60">Nothing scheduled</p>
             )}
-            <p className="mt-3 text-[13px] leading-relaxed text-white/45">
+            <p className="mt-3 text-[13px] leading-relaxed text-white/60">
               Collected automatically from your wallet. Keep the balance topped up and there is
               nothing for you to do.
             </p>
@@ -240,13 +240,13 @@ function ScorePanel({ data, loading }: { data?: CreditProfile; loading: boolean 
           style={{ left: `${position * 100}%` }}
         />
       </div>
-      <div className="mt-1.5 flex justify-between font-mono text-[10px] tabular-nums text-white/30">
+      <div className="mt-1.5 flex justify-between font-mono text-[10px] tabular-nums text-white/65">
         <span>300</span>
         <span>850</span>
       </div>
 
       {!loading && data && (
-        <p className="mt-3 text-[12px] leading-relaxed text-white/45">
+        <p className="mt-3 text-[12px] leading-relaxed text-white/60">
           {data.onTimePayments} on time
           {data.latePayments > 0 ? `, ${data.latePayments} late` : ""}. Paying on time raises your
           limit.
@@ -279,7 +279,7 @@ function PlanRow({
           <span className="block truncate text-sm font-medium text-white/90">
             {plan.merchantName}
           </span>
-          <span className="mt-0.5 block font-mono text-[11px] text-white/40">{plan.orderId}</span>
+          <span className="mt-0.5 block font-mono text-[11px] text-white/60">{plan.orderId}</span>
         </span>
 
         <span className="hidden items-center gap-[3px] sm:flex" aria-hidden>
@@ -297,7 +297,7 @@ function PlanRow({
           ))}
         </span>
 
-        <span className="w-[7ch] text-right font-mono text-[13px] tabular-nums text-white/50">
+        <span className="w-[7ch] text-right font-mono text-[13px] tabular-nums text-white/55">
           {paid}/{plan.installments.length}
         </span>
 
@@ -325,9 +325,9 @@ function PlanRow({
               key={i.index}
               className="flex items-center gap-4 border-t border-white/[0.04] py-2.5 font-mono text-[12px] first:border-t-0"
             >
-              <span className="w-[3ch] tabular-nums text-white/30">{i.index}</span>
+              <span className="w-[3ch] tabular-nums text-white/65">{i.index}</span>
               <span className="w-[11ch] tabular-nums text-white/85">{i.amountDisplay}</span>
-              <span className="flex-1 text-white/40">
+              <span className="flex-1 text-white/60">
                 {i.state === "paid"
                   ? "Collected"
                   : i.state === "dunning"
@@ -339,7 +339,7 @@ function PlanRow({
                   href={`https://sepolia.etherscan.io/tx/${i.transactionHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-white/30 underline-offset-4 hover:text-white/70 hover:underline"
+                  className="text-white/65 underline-offset-4 hover:text-white/70 hover:underline"
                 >
                   receipt
                 </a>
@@ -363,7 +363,7 @@ function Tag({
     ok: "text-emerald-300/90",
     warn: "text-amber-300",
     danger: "text-rose-300",
-    muted: "text-white/35",
+    muted: "text-white/65",
   } as const
   return (
     <span className={`font-mono text-[11px] uppercase tracking-[0.08em] ${tones[tone]}`}>
@@ -376,7 +376,7 @@ function EmptyState() {
   return (
     <div className="py-20 text-center">
       <p className="text-base font-medium text-white/85">No plans yet</p>
-      <p className="mx-auto mt-2 max-w-[46ch] text-sm leading-relaxed text-white/45">
+      <p className="mx-auto mt-2 max-w-[46ch] text-sm leading-relaxed text-white/60">
         Split a purchase into instalments at any store that accepts Polaris, and it appears here
         with every collection listed.
       </p>

@@ -96,19 +96,28 @@ export function ConnectWalletButton() {
 
   return (
     <DropdownMenu>
+      {/* asChild forwards the trigger's props to this child, so the child has
+          to be something the keyboard can reach. A div is not: it takes no
+          tab stop, which left disconnect, copy-address and switch-network
+          mouse-only. A button carries the tab stop and the Enter/Space
+          handling that Radix expects. */}
       <DropdownMenuTrigger asChild>
-        <div className="flex flex-col items-end gap-1 cursor-pointer group">
-          <div className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-1.5 rounded-sm font-mono text-[10px] font-black tracking-tight transition-all active:scale-95 shadow-[0_0_15px_rgba(166,242,74,0.2)]">
+        <button
+          type="button"
+          aria-label="Wallet menu"
+          className="flex flex-col items-end gap-1 cursor-pointer group"
+        >
+          <span className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-1.5 rounded-sm font-mono text-[10px] font-black tracking-tight transition-all active:scale-95 shadow-[0_0_15px_rgba(166,242,74,0.2)]">
             <span className="size-1.5 bg-primary-foreground rounded-full animate-pulse" />
             {address!.slice(0, 8)}...{address!.slice(-6)}
-          </div>
+          </span>
           {!isSepolia && (
             <span className="text-[7px] text-amber-400 font-bold uppercase tracking-widest animate-pulse flex items-center gap-1">
               <ShieldAlert className="size-2" />
               WRONG_NETWORK
             </span>
           )}
-        </div>
+        </button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
@@ -119,11 +128,11 @@ export function ConnectWalletButton() {
           <button
             onClick={copyAddress}
             aria-label="Copy address"
-            className="absolute top-4 right-4 text-white/20 hover:text-primary transition-colors"
+            className="absolute top-4 right-4 text-white/70 hover:text-primary transition-colors"
           >
             <Copy className="size-3" />
           </button>
-          <span className="text-[8px] text-white/40 uppercase tracking-widest font-bold">
+          <span className="text-[10px] text-white/60 uppercase tracking-widest font-bold">
             Connected
           </span>
           <span className="text-[10px] font-bold break-all text-primary/80 pr-6">{address}</span>
@@ -131,9 +140,9 @@ export function ConnectWalletButton() {
 
         <div className="p-3 flex flex-col gap-2">
           <div className="bg-white/5 p-2 rounded-sm border border-white/5 flex justify-between items-center">
-            <span className="text-[7px] text-white/30 uppercase">Network</span>
+            <span className="text-[11px] text-white/65 uppercase">Network</span>
             <span
-              className={`text-[9px] font-black ${isSepolia ? "text-primary" : "text-amber-400"}`}
+              className={`text-[11px] font-black ${isSepolia ? "text-primary" : "text-amber-400"}`}
             >
               {chain?.name ?? "Unknown"}
             </span>
@@ -160,7 +169,7 @@ export function ConnectWalletButton() {
         </div>
 
         <div className="bg-white/5 px-4 py-2 border-t border-white/10">
-          <span className="text-[7px] text-white/20 uppercase tracking-widest">
+          <span className="text-[11px] text-white/70 uppercase tracking-widest">
             PolarisPay // Sepolia
           </span>
         </div>

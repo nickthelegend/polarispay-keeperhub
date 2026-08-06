@@ -93,7 +93,7 @@ export default function DocsPage() {
     <div className="space-y-12 pt-6 pb-16 max-w-3xl">
       <header className="space-y-3">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Integrate Polaris</h1>
-        <p className="text-sm text-foreground/50">
+        <p className="text-sm text-foreground/55">
           Buy now, pay later as a drop-in checkout. Your shopper's limit is underwritten from their
           own chain history, instalments are collected automatically by a keeper running on
           KeeperHub, and you are settled without chasing anyone.
@@ -102,7 +102,7 @@ export default function DocsPage() {
 
       <Section title="Install">
         <Code text={INSTALL} lang="bash" />
-        <p className="mt-3 text-[13px] leading-relaxed text-foreground/50">
+        <p className="mt-3 text-[13px] leading-relaxed text-foreground/55">
           Published on npm as{" "}
           <a
             href="https://www.npmjs.com/package/polarispay-sdk"
@@ -166,7 +166,7 @@ export default function DocsPage() {
                   href={`https://sepolia.etherscan.io/address/${address}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="font-mono text-xs text-foreground/50 hover:text-primary transition-colors inline-flex items-center gap-1 break-all"
+                  className="font-mono text-xs text-foreground/55 hover:text-primary transition-colors inline-flex items-center gap-1 break-all"
                 >
                   {address}
                   <ExternalLink className="size-3 shrink-0" />
@@ -214,7 +214,7 @@ function Section({
     <section className="space-y-3">
       <div className="space-y-1">
         <h2 className="text-lg font-semibold">{title}</h2>
-        {blurb && <p className="text-sm text-foreground/45">{blurb}</p>}
+        {blurb && <p className="text-sm text-foreground/60">{blurb}</p>}
       </div>
       {children}
     </section>

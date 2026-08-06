@@ -11,7 +11,11 @@ export function AppFooter() {
 
     if (pathname === "/" && !isConnected) return null
     return (
-        <footer className="w-full flex flex-col md:flex-row justify-between items-center py-6 px-6 md:px-12 border-t border-white/5 gap-6 opacity-40 font-mono">
+        // opacity-40 on the element dimmed everything inside it, including the
+        // 10px labels and both links, to roughly 3.6:1 -- below the 4.5:1 that
+        // small text needs. Dimming only the text colour keeps the same quiet
+        // footer without taking the type below the threshold.
+        <footer className="w-full flex flex-col md:flex-row justify-between items-center py-6 px-6 md:px-12 border-t border-white/5 gap-6 text-foreground/65 font-mono">
             <div className="flex items-center gap-8">
                 {/* This was a pulsing green dot next to a hardcoded
                     "POLARIS_PROTOCOL: ACTIVE". It read as a liveness light but

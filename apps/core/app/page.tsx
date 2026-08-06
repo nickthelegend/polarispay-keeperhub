@@ -148,7 +148,7 @@ function Balance({ credit, error }: { credit?: Credit; error?: Error }) {
           <p className="mt-1.5 max-w-[60ch] text-sm leading-relaxed text-foreground/55">
             {error.message}
           </p>
-          <p className="mt-3 text-xs text-foreground/40">
+          <p className="mt-3 text-xs text-foreground/60">
             Nothing is wrong with your plans or your balance -- they live on chain and are
             unaffected. This page will pick them up as soon as the read succeeds.
           </p>
@@ -210,7 +210,7 @@ function Balance({ credit, error }: { credit?: Credit; error?: Error }) {
                 )}
                 {overdue ? `Due ${due}` : due}
               </p>
-              <p className="mt-4 max-w-xs text-xs leading-relaxed text-foreground/40">
+              <p className="mt-4 max-w-xs text-xs leading-relaxed text-foreground/60">
                 {overdue
                   ? "The keeper collects this on its next pass. Gas is sponsored, so it costs you nothing."
                   : "The keeper charges this automatically. Gas is sponsored, so it costs you nothing to let it run."}
@@ -219,7 +219,7 @@ function Balance({ credit, error }: { credit?: Credit; error?: Error }) {
           ) : (
             <>
               <p className="mt-3 text-4xl font-semibold text-foreground/70">Nothing due</p>
-              <p className="mt-2 text-sm text-foreground/50">Every plan is settled.</p>
+              <p className="mt-2 text-sm text-foreground/55">Every plan is settled.</p>
             </>
           )
         ) : (
@@ -250,7 +250,7 @@ function Capacity({ limits, score }: { limits: Limits; score: number }) {
       <div className="surface px-6 py-6 sm:px-8 sm:py-7">
         <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-2">
           <h2 className="text-base font-semibold">Your capacity</h2>
-          <p className="text-sm text-foreground/50">
+          <p className="text-sm text-foreground/55">
             Polaris score <span className="figure font-semibold text-foreground">{score}</span>
             <span className="mx-2 text-foreground/25">/</span>
             {limits.repaidLoans} plan{limits.repaidLoans === 1 ? "" : "s"} repaid
@@ -318,7 +318,7 @@ function Segment({ swatch, term, value }: { swatch: string; term: string; value:
   return (
     <div className="flex items-center gap-2.5">
       <span className={`size-2 shrink-0 rounded-full ${swatch}`} />
-      <dt className="text-foreground/50">{term}</dt>
+      <dt className="text-foreground/55">{term}</dt>
       <dd className="figure font-medium">{value}</dd>
     </div>
   )
@@ -349,7 +349,7 @@ function Plans({ plans, loading }: { plans?: Credit["plans"]; loading: boolean }
           <Store className="size-6 text-foreground/25" />
           <div className="space-y-1.5">
             <p className="font-medium">No plans yet</p>
-            <p className="mx-auto max-w-sm text-sm text-foreground/50">
+            <p className="mx-auto max-w-sm text-sm text-foreground/55">
               Buy something at a Polaris merchant and split it into four. Nothing is locked up
               front.
             </p>
@@ -390,9 +390,9 @@ function Plans({ plans, loading }: { plans?: Credit["plans"]; loading: boolean }
                   <p className="truncate text-sm font-medium text-foreground/80">
                     {p.merchantName}
                   </p>
-                  <p className="font-mono text-xs text-foreground/35">{p.orderId}</p>
+                  <p className="font-mono text-xs text-foreground/65">{p.orderId}</p>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-foreground/45">
+                <div className="flex items-center gap-2 text-sm text-foreground/60">
                   <span className="size-1.5 rounded-full bg-foreground/30" />
                   Paid in full
                 </div>
@@ -414,7 +414,7 @@ function Plan({ plan }: { plan: Credit["plans"][number] }) {
       <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-3">
         <div className="min-w-0">
           <h3 className="font-semibold leading-tight">{plan.merchantName}</h3>
-          <p className="mt-1 font-mono text-xs text-foreground/40">{plan.orderId}</p>
+          <p className="mt-1 font-mono text-xs text-foreground/60">{plan.orderId}</p>
         </div>
         <div className="text-right">
           <p className="figure text-xl font-semibold">{plan.outstandingDisplay}</p>
@@ -422,7 +422,7 @@ function Plan({ plan }: { plan: Credit["plans"][number] }) {
               old caption welded them into "left of 4 - 2 paid" directly under
               the figure, which read as though 240.01 were a count of
               instalments. Each number now carries its own noun. */}
-          <p className="mt-0.5 text-xs text-foreground/45">
+          <p className="mt-0.5 text-xs text-foreground/60">
             outstanding · {paid} of {total} paid
           </p>
         </div>
@@ -459,7 +459,7 @@ function Segment_({ inst }: { inst: Credit["plans"][number]["installments"][numb
       <span className="mt-2 block figure text-[13px] font-medium text-foreground/85">
         {inst.amountDisplay.replace(/\s*pUSDC$/, "")}
       </span>
-      <span className="mt-0.5 block text-[11px] text-foreground/40">
+      <span className="mt-0.5 block text-[11px] text-foreground/60">
         {s.label} · {when}
       </span>
     </span>
@@ -485,7 +485,7 @@ function SectionHead({ children, count }: { children: React.ReactNode; count?: n
     <div className="mb-5 flex items-baseline gap-3">
       <h2 className="text-base font-semibold">{children}</h2>
       {count !== undefined && count > 0 && (
-        <span className="figure text-sm text-foreground/40">{count} open</span>
+        <span className="figure text-sm text-foreground/60">{count} open</span>
       )}
     </div>
   )
@@ -577,7 +577,7 @@ function Mechanics() {
           <li key={s.n}>
             <p className="figure text-xs text-primary/70">{s.n}</p>
             <h3 className="mt-2.5 text-base font-semibold">{s.head}</h3>
-            <p className="mt-2 max-w-[46ch] text-sm leading-relaxed text-foreground/50">{s.body}</p>
+            <p className="mt-2 max-w-[46ch] text-sm leading-relaxed text-foreground/55">{s.body}</p>
             {s.href && (
               <Link
                 href={s.href}
@@ -638,7 +638,7 @@ function KeeperFeed() {
     <div className="surface p-5">
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="label">Keeper activity</h2>
-        <span className="flex items-center gap-2 text-[0.6875rem] text-foreground/45">
+        <span className="flex items-center gap-2 text-[0.6875rem] text-foreground/60">
           <span className="size-1.5 rounded-full bg-primary" />
           live
         </span>
@@ -651,7 +651,7 @@ function KeeperFeed() {
           ))}
         </div>
       ) : actions.length === 0 ? (
-        <p className="mt-5 text-sm leading-relaxed text-foreground/50">
+        <p className="mt-5 text-sm leading-relaxed text-foreground/55">
           The keeper has not run yet. Once it does, every action it takes appears here with its
           transaction.
         </p>
@@ -673,14 +673,14 @@ function KeeperFeed() {
                         ? "text-primary"
                         : a.outcome === "failed"
                           ? "text-amber-400"
-                          : "text-foreground/45"
+                          : "text-foreground/60"
                     }
                   >
                     {actionLabel(a.kind, a.outcome)}
                   </span>
                   {a.amount ? <span className="figure text-foreground/85"> {a.amount}</span> : null}
                 </p>
-                <p className="mt-0.5 truncate text-xs text-foreground/40">{a.subject}</p>
+                <p className="mt-0.5 truncate text-xs text-foreground/60">{a.subject}</p>
               </div>
 
               <div className="shrink-0 text-right">
@@ -695,11 +695,11 @@ function KeeperFeed() {
                     <ArrowUpRight className="size-3" />
                   </a>
                 ) : (
-                  <span className="text-xs text-foreground/35">
+                  <span className="text-xs text-foreground/65">
                     {a.outcome === "skipped" ? "nothing due" : "no transaction"}
                   </span>
                 )}
-                <p className="mt-0.5 text-[0.6875rem] text-foreground/35">
+                <p className="mt-0.5 text-[0.6875rem] text-foreground/65">
                   {relative(a.at)}
                   {a.sponsored ? " - gas sponsored" : ""}
                 </p>

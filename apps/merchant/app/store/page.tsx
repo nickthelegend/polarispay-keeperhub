@@ -273,12 +273,12 @@ export default function Store() {
               <>
                 <div className="flex items-baseline justify-between gap-4">
                   <h2 className="text-base font-semibold">Checkout</h2>
-                  <span className="font-mono text-[11px] text-foreground/40">
+                  <span className="font-mono text-[11px] text-foreground/60">
                     {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
                   </span>
                 </div>
 
-                <p className="mt-1 text-sm text-foreground/50">{selected.name}</p>
+                <p className="mt-1 text-sm text-foreground/55">{selected.name}</p>
 
                 <div className="mt-6 space-y-3">
                   {/* Nothing is charged at checkout: the buyer signs an
@@ -349,7 +349,7 @@ export default function Store() {
                 >
                   {connecting ? 'Connecting…' : 'Connect wallet'}
                 </button>
-                <p className="mt-4 text-xs leading-relaxed text-foreground/40">
+                <p className="mt-4 text-xs leading-relaxed text-foreground/60">
                   Sepolia testnet. Nothing here moves real money.
                 </p>
               </>
@@ -411,12 +411,12 @@ function ProductTile({
 
       <span className="min-w-0 flex-1">
         <span className="block font-medium leading-tight">{product.name}</span>
-        <span className="mt-1 block text-[13px] text-foreground/45">{product.blurb}</span>
+        <span className="mt-1 block text-[13px] text-foreground/60">{product.blurb}</span>
       </span>
 
       <span className="shrink-0 text-right">
         <span className="figure block text-lg font-semibold">{product.price.toFixed(2)}</span>
-        <span className="mt-0.5 block font-mono text-[11px] text-foreground/40">
+        <span className="mt-0.5 block font-mono text-[11px] text-foreground/60">
           {(product.price / 4).toFixed(2)} × 4
         </span>
       </span>
@@ -518,7 +518,7 @@ function PlanOption({
       <span className="flex items-start justify-between gap-3">
         <span className="min-w-0">
           <span className="block text-sm font-medium leading-tight">{title}</span>
-          <span className="mt-1 block text-xs leading-relaxed text-foreground/45">{caption}</span>
+          <span className="mt-1 block text-xs leading-relaxed text-foreground/60">{caption}</span>
         </span>
         <span
           aria-hidden
@@ -543,7 +543,7 @@ function PlanOption({
       {/* A split plan takes nothing at checkout, so only the pay-in-full option
           can honestly say "today". The old line claimed the first instalment
           was charged on the spot for both. */}
-      <span className="mt-2 block font-mono text-[11px] text-foreground/40">
+      <span className="mt-2 block font-mono text-[11px] text-foreground/60">
         {schedule > 1 ? `Nothing today, then ${schedule} × ${lead}` : `${lead} today`}
       </span>
     </button>
@@ -553,7 +553,7 @@ function PlanOption({
 function Row({ term, value }: { term: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
-      <dt className="text-foreground/45">{term}</dt>
+      <dt className="text-foreground/60">{term}</dt>
       <dd className="figure font-medium">{value}</dd>
     </div>
   );
